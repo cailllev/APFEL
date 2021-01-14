@@ -8,6 +8,7 @@ Uses RSA Algorithm to encript files. No private key is needed tho, only a passwo
 - decript.py to decript a file with given paramfile and password
 
 ## TODO
+- is Python really to slow (removing the JVM part)?
 - check security, is this really secure?
 - enhance usage, so that command line params can be used
 - enhance usage, so that the paramfile does not have to be in same dir
