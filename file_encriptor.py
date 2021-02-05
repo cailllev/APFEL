@@ -27,8 +27,8 @@ def safe_prime_bm(bit_length, count_primes):
             break
 
     diff = time.time() - start
-    estimate = diff * 2**(bit_length / bm_bitlength) * count_primes
-    variance = 2
+    estimate = diff * 2**(bit_length // bm_bitlength) * count_primes
+    variance = 4
     est_min = round(estimate / variance)
     est_max = round(estimate * variance)
 
@@ -56,7 +56,7 @@ def init_keyfile(name, password=None):
     p_length_bit = n_length_bit // 2 + delta
     q_length_bit = n_length_bit - p_length_bit - 1
 
-    safe_prime_bm(n_length_bit//2)
+    safe_prime_bm(n_length_bit//2, 2)
     p = safe_prime(p_length_bit)
     q = safe_prime(q_length_bit)
 
@@ -83,19 +83,11 @@ def init_keyfile(name, password=None):
             print("[*] Found valid d and e")
             break
 
+    assert e * d % n == 1, "[!] e * d != 1 (mod n)"
+
     del p
     del q
     del phi
-
-    # i.e. in Test / Debug mode
-    if password:
-        print("[*] n: " + str(n))
-        print("[*] e: " + str(e))
-        print("[*] d: " + str(d))
-        print("[*] d_in: " + str(d_in))
-        print("[*] diff: " + str(diff))
-
-        print("[*] check: e*d == 1 (mod n) -> " + str(e*d % n))
 
     keyfile = open(outfile, "w")
     keyfile.write(HEADER_KEYFILE)
@@ -105,6 +97,23 @@ def init_keyfile(name, password=None):
     keyfile.write(TAIL_KEYFILE)
     keyfile.close()
 
+    # i.e. in Test / Debug mode
+    if password:
+        print("[*] n: " + str(n))
+        print("[*] e: " + str(e))
+        print("[*] d: " + str(d))
+        print("[*] d_in: " + str(d_in))
+        print("[*] diff: " + str(diff))
+
+        s = "check: e*d == 1 (mod n) ->"
+        
+        if e*d % n == 1:
+            print("[*] " + s + " OK")
+        else:
+            print("[!] " + s + " NOK")
+
+        return n, e, d
+
 
 def encript(filename, keyfile):
     outfile = filename + ENCRIPTED_EXTENSION
@@ -112,15 +121,18 @@ def encript(filename, keyfile):
     if os.path.isfile(outfile):
         raise FileExistsError("[!] Encripted outfile " + outfile + " already exists.")
 
-    k = open(keyfile, "r")
+    k = open(keyfile + KEYFILE_EXTENSION, "r")
     n, e, _ = k.readlines()[1:-1]
     k.close()
+
+    n = int(n.strip())
+    e = int(e.strip())
 
     f = open(filename, "rb")
     data = f.readlines()
     f.close()
 
-    m = int.from_bytes(data, "big")
+    m = string_to_number(data)
 
     # m^e mod n
     cipher = pow(m, e, n)
@@ -138,6 +150,8 @@ def decript(filename, keyfile, show_decripted, save_decripted):
     n, _, diff = k.readlines()[1:-1]
     k.close()
 
+    n = int(n.strip())
+
     d = getpass("[*] Please enter your password you used for the encription: ")
     d = string_to_number(d)
 
@@ -145,7 +159,7 @@ def decript(filename, keyfile, show_decripted, save_decripted):
     data = f.readlines()
     f.close()
 
-    c = int.from_bytes(data, "big")
+    c = string_to_number(data)
 
     # c^d mod n
     plain = pow(c, d, n)
