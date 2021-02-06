@@ -6,28 +6,28 @@ from sage.all import is_prime
 
 
 class MyTestCase(unittest.TestCase):
-    def test_init_keyfile(self):
-        short_name = "test_keyfile"
-        name = "test_keyfile" + KEYFILE_EXTENSION
+    def est_init_keyfile(self):
+        keyfile = "test_keyfile"
+        keyfile_out = "test_keyfile" + KEYFILE_EXTENSION
         password = "AABBCC"
         try:
-            os.remove(name)
+            os.remove(keyfile_out)
         except:
             pass
 
-        n_out, e_out, d_out = init_keyfile(short_name, password)
+        n_out, e_out, d_out = init_keyfile(keyfile, password, 256)
         password_as_int = string_to_number(password)
 
-        k = open(name, "r")
+        k = open(keyfile_out, "r")
         n, e, diff = k.readlines()[1:-1]
         k.close()
 
         d = int(diff) + password_as_int
         self.assertTrue(is_prime(d))
 
-        self.assertEqual(n, str(n_out).strip())
-        self.assertEqual(e, str(e_out).strip())
-        self.assertEqual(d, str(d_out).strip())
+        self.assertEqual(n.strip(), str(n_out).strip())
+        self.assertEqual(e.strip(), str(e_out).strip())
+        self.assertEqual(d, d_out)
 
 
     def test_convert(self):
@@ -53,20 +53,25 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(number_to_string(i), s)
 
     def test_encript_and_decript(self):
-        short_name = "test_keyfile"
-        keyfile = "test_keyfile" + KEYFILE_EXTENSION
+        keyfile = "test_keyfile"
+        keyfile_out = keyfile + KEYFILE_EXTENSION
         password = "AABBCC"
         try:
-            os.remove(keyfile)
+            os.remove(keyfile_out)
         except:
             pass
 
         test_file_to_encript = "test_file.txt"
         os.system(f"echo 'test\ntest\ntest' > {test_file_to_encript}")
 
-        init_keyfile(short_name, password)
-        encript(test_file_to_encript, keyfile)
-        decript()
+        try:
+            os.remove(test_file_to_encript + ENCRIPTED_EXTENSION)
+        except:
+            pass
+
+        init_keyfile(keyfile, password, 256)
+        encript(test_file_to_encript, keyfile_out)
+        decript(test_file_to_encript + ENCRIPTED_EXTENSION, keyfile_out, password)
 
 
 
