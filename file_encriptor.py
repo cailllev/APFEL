@@ -28,12 +28,12 @@ def safe_prime_bm(bit_length, count_primes):
             break
 
     diff = time.time() - start
-    estimate = diff * 2**(bit_length // bm_bitlength) * count_primes
+    estimate = diff * 2**(bit_length // bm_bitlength) * count_primes * 2
     variance = 4
     est_min = round(estimate / variance)
     est_max = round(estimate * variance)
 
-    print(f"[*] Estimation to create safe primes between: {str(est_min)}s and {str(est_max)}s")
+    print(f"[*] Estimation to create {count_primes} safe primes between: {str(est_min)}s and {str(est_max)}s")
 
 
 def safe_prime(bit_length):

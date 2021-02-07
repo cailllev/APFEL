@@ -123,7 +123,7 @@ class FileEncriptorTest(unittest.TestCase):
         self.assertEqual(file_contents, plain)
 
     def test_encript_and_decript_multiple_blocks(self):
-        n_len = 256
+        n_len = 128
         create_keyfile(n_len)
 
         test_file_to_encript = "test_file.txt"
@@ -132,7 +132,7 @@ class FileEncriptorTest(unittest.TestCase):
         for j in range(n_len):  # test every length of last block
             if j % 16 == 0:
                 print("*********************************")
-                print(str(n_len / j) + " / 16 done ...")
+                print(str(j) + " / 128 done ...")
                 print("*********************************")
 
             for i in range(n_len * 15 + j):  # 15 full blocks + 1 varing block 
