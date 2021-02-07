@@ -51,6 +51,7 @@ def init_keyfile(name, password=None, n_len=2048):
         raise FileExistsError("Keyfile " + keyfile_out + " already exists.")
 
     if n_len:
+        assert n_len >= 128, "[!] Length of n has to be at least 128 bit. Not security, but functionality wise."
         n_length_bit = n_len  # testing purposes
     else:
         n_length_bit = 2048  # 136 bit security
@@ -72,18 +73,24 @@ def init_keyfile(name, password=None, n_len=2048):
         d_in = password
 
     d_in = string_to_number(d_in)
+    bit_diff = int(phi).bit_length() - d_in.bit_length()
 
     while True:
-        offset = secrets.randbelow(10**6)
-        d = next_prime(d_in + offset)
+        
+        # create d near at phi
+        # 0 ... d_in ......................... d ... phi
+        offset_bit_size = 8
+        random_offset = secrets.randbelow(2**offset_bit_size)
+        
+        d = next_prime(d_in * 2**(bit_diff-offset_bit_size) + random_offset)
 
         if gcd(d, phi) == 1:
-            e = inverse_mod(d, n)
+            e = inverse_mod(d, phi)
             diff = d - d_in
             print("[*] Found valid d and e")
             break
 
-    assert e * d % n == 1, "[!] e * d != 1 (mod n)"
+    assert e * d % phi == 1, "[!] e * d != 1 (mod phi(n))"
 
     del p
     del q
@@ -127,7 +134,6 @@ def encript(filename, keyfile):
 
     data = "".join(data)
     m = string_to_number(data)
-    print("[m]: " + str(m))
 
 
     # m^e mod n
@@ -159,13 +165,9 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
     f.close()
 
     c = int(data)
-    print("[c]: " + str(c))
 
     # c^d mod n
     plain = pow(c, d, n)
-    print("[d]: " + str(d))
-    print("[n]: " + str(n))
-    print("[m]: " + str(plain))
     plain = number_to_string(plain)
 
     print("[*] Successfully decripted contents of " + filename + ".")
