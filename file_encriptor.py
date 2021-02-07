@@ -7,14 +7,15 @@ import getpass
 
 from sage.all import ZZ, random_prime, next_prime, inverse_mod, gcd
 from getpass import getpass
+from math import ceil, floor, log
 
 
 BASE = 256  # each char has one byte
 ENCRIPTED_EXTENSION = ".parsa"
 KEYFILE_EXTENSION = ".pub"
 
-HEADER_KEYFILE = "======== BEGIN PUBLIC KEYFILE PASSWORD RSA ========\n"
-TAIL_KEYFILE = "========= END PUBLIC KEYFILE PASSWORD RSA =========\n"
+HEADER_KEYFILE = "======== BEGIN PUBLIC KEYFILE - PARSA ========\n"
+TAIL_KEYFILE = "========= END PUBLIC KEYFILE - PARSA =========\n"
 
 
 def safe_prime_bm(bit_length, count_primes):
@@ -50,15 +51,17 @@ def init_keyfile(name, password=None, n_len=2048):
     if os.path.isfile(keyfile_out):
         raise FileExistsError("Keyfile " + keyfile_out + " already exists.")
 
+    # testing purposes
     if n_len:
-        assert n_len >= 128, "[!] Length of n has to be at least 128 bit. Not security, but functionality wise."
-        n_length_bit = n_len  # testing purposes
+        assert n_len >= 64, "[!] Length of n has to be at least 128 bit. Not security, but functionality wise."
+        assert log(n_len,2).is_integer(), "[!] Length of n must be power of 2."
+        n_length_bit = n_len
     else:
         n_length_bit = 2048  # 136 bit security
 
-    delta = 10 + secrets.randbelow(20)
+    delta = 5 + secrets.randbelow(10)
     p_length_bit = n_length_bit // 2 + delta
-    q_length_bit = n_length_bit - p_length_bit - 1
+    q_length_bit = n_length_bit - p_length_bit + 1
 
     safe_prime_bm(n_length_bit//2, 2)
     p = safe_prime(p_length_bit)
@@ -72,17 +75,22 @@ def init_keyfile(name, password=None, n_len=2048):
     else:
         d_in = password
 
-    d_in = string_to_number(d_in)
-    bit_diff = int(phi).bit_length() - d_in.bit_length()
+    d_in = string_to_hex_nums(d_in, n_length_bit)
+    assert len(d_in) == 1, f"Bit length of password must not be bigger than {n_length_bit}, {d_in}"
+
+    d_in = d_in[0]
+    bit_diff = n_length_bit - (len(d_in) * 4)
+
+    d_in = int(d_in, 16)
 
     while True:
         
         # create d near at phi
         # 0 ... d_in ......................... d ... phi
         offset_bit_size = 8
-        random_offset = secrets.randbelow(2**offset_bit_size)
-        
-        d = next_prime(d_in * 2**(bit_diff-offset_bit_size) + random_offset)
+        random_offset = secrets.randbelow(2**(offset_bit_size - 1))
+
+        d = d_in * 2**(bit_diff-offset_bit_size) + random_offset
 
         if gcd(d, phi) == 1:
             e = inverse_mod(d, phi)
@@ -96,11 +104,13 @@ def init_keyfile(name, password=None, n_len=2048):
     del q
     del phi
 
+    quotient, remainder = divmod(diff, d_in)
+
     keyfile = open(keyfile_out, "w")
     keyfile.write(HEADER_KEYFILE)
     keyfile.write(str(n) + "\n")
     keyfile.write(str(e) + "\n")
-    keyfile.write(str(diff) + "\n")
+    keyfile.write(str(quotient) + ":" + str(remainder) + "\n")
     keyfile.write(TAIL_KEYFILE)
     keyfile.close()
 
@@ -133,11 +143,15 @@ def encript(filename, keyfile):
     f.close()
 
     data = "".join(data)
-    m = string_to_number(data)
-
+    m = string_to_hex_nums(data, n.bit_length())
+    cipher = []
 
     # m^e mod n
-    cipher = str(pow(m, e, n))
+    for num in m:
+        num = int(num, 16)  # convert from hex to decimal number
+        cipher.append(str(pow(num, e, n)) + "\n")
+
+    cipher = "".join(cipher)
 
     c = open(outfile, "w")
     c.write(cipher)
@@ -157,18 +171,23 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
     if not password:
         password = getpass("[*] Please enter your password you used for the encription: ")
 
-    d = string_to_number(password)
-    d += int(diff)
+    d = int(string_to_hex_nums(password, n.bit_length())[0], 16)
+    quotient, remainder = diff.split(":")
+    d += int(quotient) * d + int(remainder)
 
     f = open(filename, "r")
-    data = f.readline()
+    data = f.readlines()
     f.close()
 
-    c = int(data)
+    plain = []
+    for c in data:
+        c = int(c)
 
-    # c^d mod n
-    plain = pow(c, d, n)
-    plain = number_to_string(plain)
+        # c^d mod n
+        m = pow(c, d, n)
+        plain.append(hex(m)[2:])
+    
+    plain = hex_nums_to_string(plain)
 
     print("[*] Successfully decripted contents of " + filename + ".")
     if show_decripted:
@@ -189,20 +208,34 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
         print("[*] Contents saved in " + outfile + ".")
 
 
-def string_to_number(string):
+def string_to_hex_nums(string, n_len):
     if not isinstance(string, str):
-        raise Exception("Only strings allowed: ", string)
+        raise Exception("Only string allowed: ", string)
 
-    return int.from_bytes(string.encode(), "big")
+    block_size = n_len // 4  # n == 128 -> 32 hex chars per block 
+    blocks = ceil((len(string) * 2) / block_size)
+
+    as_hex = string.encode().hex()
+
+    hex_nums = []
+    for i in range(blocks):
+        hex_nums.append(as_hex[i*block_size:(i+1)*block_size])
+
+    #diff = block_size - len(hex_nums[-1])  # 32 - 10 => 22
+    #padding_char = hex(diff)[2:]
+    #hex_nums[-1] = hex_nums[-1] + [padding_char] * diff // 2
+
+    return hex_nums
 
 
-def number_to_string(num):
-    if not isinstance(num, int):
-        raise Exception("Only integers allowed: ", num)
+def hex_nums_to_string(hex_nums):
+    if not isinstance(hex_nums, list) or not isinstance(hex_nums[0], str):
+        raise Exception("Only list of hex nums allowed: ", hex_nums)
 
-    l = num.bit_length() // 8 + 1
+    recreated = "".join(hex_nums)
+    s = bytes.fromhex(recreated).decode()
 
-    return num.to_bytes(l, "big").decode()
+    return s
 
 
 def parse_args(argv):
