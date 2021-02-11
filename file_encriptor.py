@@ -4,6 +4,7 @@ import secrets
 import time
 import os.path
 import getpass
+import bcrypt
 
 from sage.all import ZZ, random_prime, next_prime, inverse_mod, gcd
 from getpass import getpass
@@ -33,7 +34,7 @@ def safe_prime_bm(bit_length, count_primes):
     est_min = round(estimate / variance)
     est_max = round(estimate * variance)
 
-    print(f"[*] Estimation to create {count_primes} safe primes between: {str(est_min)}s and {str(est_max)}s")
+    print(f"[*] Estimation to create {count_primes} safe primes between: {str(est_min)}s and {str(est_max)}s.")
 
 
 def safe_prime(bit_length):
@@ -41,56 +42,48 @@ def safe_prime(bit_length):
     while True:
         p = random_prime(2 ** bit_length, False, 2 ** (bit_length-1))
         if ZZ((p - 1) / 2).is_prime():
-            print("[*] Actual used time: " + str(round(time.time() - start)) + "s")
-            return p
+            return int(p)
 
 
-def init_keyfile(name, password=None, n_len=2048):
+def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
+    print(f"[*] Create keyfile with {n_len} bits and {hash_rounds} hash rounds.")
+
     keyfile_out = name + KEYFILE_EXTENSION
 
     if os.path.isfile(keyfile_out):
         raise FileExistsError("Keyfile " + keyfile_out + " already exists.")
 
-    # testing purposes
-    if n_len:
-        assert n_len >= 64, "[!] Length of n has to be at least 128 bit. Not security, but functionality wise."
-        assert log(n_len,2).is_integer(), "[!] Length of n must be power of 2."
-        n_length_bit = n_len
-    else:
-        n_length_bit = 2048  # 136 bit security
+    assert n_len >= 32, "[!] Length of n has to be at least 32 bit, functionality wise."
+    assert log(n_len,2).is_integer(), "[!] Length of n must be power of 2."
 
     delta = 5 + secrets.randbelow(10)
-    p_length_bit = n_length_bit // 2 + delta
-    q_length_bit = n_length_bit - p_length_bit + 1
+    p_length_bit = n_len // 2 + delta
+    q_length_bit = n_len - p_length_bit + 1
 
-    safe_prime_bm(n_length_bit//2, 2)
+    safe_prime_bm(n_len//2, 2)
     p = safe_prime(p_length_bit)
     q = safe_prime(q_length_bit)
 
     n = p*q
     phi = (p-1)*(q-1)
 
+    debug = True
     if password is None:
-        d_in = getpass("[*] Please enter the password to use for the encription: ")
-    else:
-        d_in = password
+        debug = False
+        password = getpass("[*] Please enter the password to use for the encription: ")
 
-    d_in = string_to_hex_nums(d_in, n_length_bit)
-    assert len(d_in) == 1, f"Bit length of password must not be bigger than {n_length_bit}, {d_in}"
-
-    d_in = d_in[0]
-    bit_diff = n_length_bit - (len(d_in) * 4)
-
-    d_in = int(d_in, 16)
+    salt = create_salt(hash_rounds)
+    d_in, bit_diff  = get_num_from_password(password, n_len, salt)
 
     while True:
         
-        # create d near at phi
-        # 0 ... d_in ......................... d ... phi
-        offset_bit_size = 8
+        # create d near at phi, regardless where d_in is
+        # 0 ... d_in ..................... d ........ phi
+        # 0 .............................. d . d_in . phi
+        offset_bit_size = 16
         random_offset = secrets.randbelow(2**(offset_bit_size - 1))
 
-        d = d_in * 2**(bit_diff-offset_bit_size) + random_offset
+        d = next_prime(int(d_in * 2**(bit_diff-offset_bit_size) + random_offset))
 
         if gcd(d, phi) == 1:
             e = inverse_mod(d, phi)
@@ -104,25 +97,26 @@ def init_keyfile(name, password=None, n_len=2048):
     del q
     del phi
 
-    quotient, remainder = divmod(diff, d_in)
+    quotient = diff // d_in
+    remainder = diff % d_in
 
     keyfile = open(keyfile_out, "w")
     keyfile.write(HEADER_KEYFILE)
-    keyfile.write(str(n) + "\n")
+    keyfile.write(str(n) + ":" + str(n_len) + "\n")
     keyfile.write(str(e) + "\n")
-    keyfile.write(str(quotient) + ":" + str(remainder) + "\n")
+    keyfile.write(str(salt) + ":" + str(quotient) + ":" + str(remainder) + "\n")
     keyfile.write(TAIL_KEYFILE)
     keyfile.close()
 
     # i.e. in Test / Debug mode
-    if password:
+    if debug:
         print("[#] n:    " + str(n))
         print("[#] e:    " + str(e))
         print("[#] d:    " + str(d))
         print("[#] d_in: " + str(d_in))
         print("[#] diff: " + str(diff))
 
-        return n, e, d
+        return n, e, d, d_in
 
 
 def encript(filename, keyfile):
@@ -135,7 +129,10 @@ def encript(filename, keyfile):
     n, e, _ = k.readlines()[1:-1]
     k.close()
 
-    n = int(n.strip())
+    n, n_len = n.split(":")
+    n = int(n)
+    n_len = int(n_len.strip())
+
     e = int(e.strip())
 
     f = open(filename, "r")
@@ -143,12 +140,13 @@ def encript(filename, keyfile):
     f.close()
 
     data = "".join(data)
-    m = string_to_hex_nums(data, n.bit_length())
+    m = string_to_hex_nums(data, n_len)
     cipher = []
 
     # m^e mod n
     for num in m:
         num = int(num, 16)  # convert from hex to decimal number
+
         cipher.append(str(pow(num, e, n)) + "\n")
 
     cipher = "".join(cipher)
@@ -166,13 +164,15 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
     n, _, diff = k.readlines()[1:-1]
     k.close()
 
-    n = int(n.strip())
+    n, n_len = n.split(":")
+    n = int(n)
+    n_len = int(n_len.strip())
 
     if not password:
         password = getpass("[*] Please enter your password you used for the encription: ")
 
-    d = int(string_to_hex_nums(password, n.bit_length())[0], 16)
-    quotient, remainder = diff.split(":")
+    salt, quotient, remainder = diff.split(":")
+    d, _ = get_num_from_password(password, n_len, salt)
     d += int(quotient) * d + int(remainder)
 
     f = open(filename, "r")
@@ -181,13 +181,13 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
 
     plain = []
     for c in data:
-        c = int(c)
+        c = int(c.strip())
 
         # c^d mod n
         m = pow(c, d, n)
         plain.append(hex(m)[2:])
     
-    plain = hex_nums_to_string(plain)
+    plain = hex_nums_to_string(plain, n_len)
 
     print("[*] Successfully decripted contents of " + filename + ".")
     if show_decripted:
@@ -215,27 +215,68 @@ def string_to_hex_nums(string, n_len):
     block_size = n_len // 4  # n == 128 -> 32 hex chars per block 
     blocks = ceil((len(string) * 2) / block_size)
 
-    as_hex = string.encode().hex()
+    as_hex = string.encode(encoding='ascii').hex()
 
     hex_nums = []
     for i in range(blocks):
         hex_nums.append(as_hex[i*block_size:(i+1)*block_size])
 
-    #diff = block_size - len(hex_nums[-1])  # 32 - 10 => 22
-    #padding_char = hex(diff)[2:]
-    #hex_nums[-1] = hex_nums[-1] + [padding_char] * diff // 2
+    # padding
+    diff = block_size - len(hex_nums[-1])
+    hex_nums[-1] += "0" * diff
 
     return hex_nums
 
 
-def hex_nums_to_string(hex_nums):
+def hex_nums_to_string(hex_nums, n_len):
     if not isinstance(hex_nums, list) or not isinstance(hex_nums[0], str):
         raise Exception("Only list of hex nums allowed: ", hex_nums)
+    
+    # reattach leading 0s
+    block_size = n_len // 4
+
+    for i in range(len(hex_nums)):
+        diff = block_size - len(hex_nums[i])
+        hex_nums[i] = "0" * diff + hex_nums[i]
+
+    # remove padding (50 50 00 -> 50 50)
+    i = len(hex_nums[-1]) - 1
+    while hex_nums[-1][i] == hex_nums[-1][i-1] == "0" and i > 2:
+        i -= 2  # -2 because ascii encoding uses 2 hex chars per char -> ascii 0 == hex 00
+
+    hex_nums[-1] = hex_nums[-1][:i+1]
 
     recreated = "".join(hex_nums)
-    s = bytes.fromhex(recreated).decode()
+    s = bytes.fromhex(recreated).decode(encoding='ascii')
 
     return s
+
+
+def create_salt(rounds):
+    return bcrypt.gensalt(rounds).decode()
+
+
+def get_num_from_password(password, n_len, salt):
+    hashed = bcrypt.hashpw(password.encode(), salt.encode()).decode()
+    _, _, rounds, hashed = hashed.split("$")
+
+    d_in = int.from_bytes(hashed.encode(), "big")
+    bit_diff = n_len - d_in.bit_length()
+
+    # if d_in is bigger than n -> rightshift so it fits
+    if bit_diff < 0:
+        d_in = d_in >> -bit_diff
+        bit_diff = 0
+
+    # still bigger than n -> shift once more
+    if d_in > 2**n_len:
+        d_in = d_in >> 1
+
+    # only print this if not testing exhaustively (i.e. rounds == 16)
+    if rounds == 16:
+        print("[*] Password hashed and transformed to number < n")
+
+    return d_in, bit_diff
 
 
 def parse_args(argv):

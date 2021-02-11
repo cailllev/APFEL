@@ -1,1 +1,7 @@
 __pycache__
+
+*.txt
+*.py
+
+!file_encriptor.py
+!test_file_encriptor.py
