@@ -1,6 +1,6 @@
 # OWN - File Encription
 ## Description
-Uses RSA Algorithm to encript files. No private key is needed tho, only a password. The password is transformed to a bigger (prime) number, this is then used as the decripter (d).
+Uses RSA Algorithm to encript files. No private key is needed tho, only a password. The password is transformed to a bigger (prime) number, this is then used as the decriptor (d).
 
 ## Usage
 ```python3 file_encriptor.py -h```
@@ -11,5 +11,8 @@ Uses RSA Algorithm to encript files. No private key is needed tho, only a passwo
 - ```-v``` or ```--verbose``` to print the decripted file
 - ```-s``` or ```--save``` to save the decripted file
 
+## Threat Modelling
+ - no obvious weakness, see [here](Threat_Modelling.md)
+
 ## TODO
-- check security, is this concept secure?
+- 
