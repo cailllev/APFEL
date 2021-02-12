@@ -10,6 +10,8 @@ from sage.all import ZZ, random_prime, next_prime, inverse_mod, gcd
 from getpass import getpass
 from math import ceil, floor, log
 
+from string import punctuation
+
 
 BASE = 256  # each char has one byte
 ENCRIPTED_EXTENSION = ".parsa"
@@ -21,20 +23,14 @@ TAIL_KEYFILE = "========= END PUBLIC KEYFILE - PARSA =========\n"
 
 def safe_prime_bm(bit_length, count_primes):
     start = time.time()
-    bm_bitlength = 200
+    bm_bitlength = 512
 
-    while True:
-        p = random_prime(2 ** bm_bitlength, False, 2 ** (bm_bitlength - 1))
-        if ZZ((p - 1) / 2).is_prime():
-            break
+    safe_prime(bm_bitlength)
 
     diff = time.time() - start
-    estimate = diff * 2**(bit_length // bm_bitlength) * count_primes * 2
-    variance = 4
-    est_min = round(estimate / variance)
-    est_max = round(estimate * variance)
+    estimate = round(diff * 2**(bit_length // bm_bitlength) * count_primes * 8)
 
-    print(f"[*] Estimation to create {count_primes} safe primes between: {str(est_min)}s and {str(est_max)}s.")
+    print(f"[*] Estimation to create {count_primes} safe primes: {str(estimate)}s.")
 
 
 def safe_prime(bit_length):
@@ -53,8 +49,13 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
     if os.path.isfile(keyfile_out):
         raise FileExistsError("Keyfile " + keyfile_out + " already exists.")
 
-    assert n_len >= 32, "[!] Length of n has to be at least 32 bit, functionality wise."
-    assert log(n_len,2).is_integer(), "[!] Length of n must be power of 2."
+    # test if in debug mode
+    if password: 
+        assert n_len >= 32, "[!] Length of n has to be at least 32 bit, functionality wise."
+    else:
+        assert n_len >= 2048, "[!] Length of n has to be at least 2048 bit, security wise."
+
+    assert log(n_len,2).is_integer(), "[!] Length of n must be power of 2 (2048, 4096, ...)."
 
     delta = 5 + secrets.randbelow(10)
     p_length_bit = n_len // 2 + delta
@@ -70,7 +71,17 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
     debug = True
     if password is None:
         debug = False
-        password = getpass("[*] Please enter the password to use for the encription: ")
+
+        while True:
+            password = getpass("[*] Please enter the password to use for the encription: ")
+            password_check = getpass("[*] Please re-enter the password: ")
+
+            check_password_strength(password)
+
+            if password_check == password:
+                break
+            else:
+                print("[!] Passwords did not match, please try again.")
 
     salt = create_salt(hash_rounds)
     d_in, bit_diff  = get_num_from_password(password, n_len, salt)
@@ -88,8 +99,11 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
         if gcd(d, phi) == 1:
             e = inverse_mod(d, phi)
             diff = d - d_in
-            print("[*] Found valid d and e")
-            break
+
+            # enforce big e's (at least as big as d)
+            if e > n_len - offset_bit_size:
+                print("[*] Found valid d and e")
+                break
 
     assert e * d % phi == 1, "[!] e * d != 1 (mod phi(n))"
 
@@ -117,6 +131,30 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
         print("[#] diff: " + str(diff))
 
         return n, e, d, d_in
+
+
+def check_password_strength(password):
+    if len(password) < 10:
+        print("[!] Password has to be at least 10 characters long.")
+        return False
+
+    if not any(char.isdigit() for char in password):
+        print("[!] Password has to contain at least one number.")
+        return False
+
+    if not any(char.isupper() for char in password):
+        print("[!] Password has to contain at least one uppercase character.")
+        return False
+
+    if not any(char.islower() for char in password):
+        print("[!] Password has to contain at least one lowercase character.")
+        return False
+
+    if not any(char in punctuation for char in password):
+        print("[!] Password has to contain at least one special character.")
+        return False
+
+    return True
 
 
 def encript(filename, keyfile):

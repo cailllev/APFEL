@@ -246,6 +246,22 @@ class FileEncriptorTest(unittest.TestCase):
 
             self.assertEqual(random_file_contents, plain)
 
+    def test_check_password_strength(self):
+        self.assertFalse(check_password_strength("012345aA!"))   # fails length
+        self.assertTrue(check_password_strength("012345aA!9"))   # okay
+
+        self.assertFalse(check_password_strength("Aaaaaaaaa!"))  # fails at least one number
+        self.assertTrue(check_password_strength("Aaaaaaaaa!1"))  # okay
+
+        self.assertFalse(check_password_strength("aaaaaaaa1!"))  # fails uppercase character
+        self.assertTrue(check_password_strength("Aaaaaaaa1!"))   # okay
+
+        self.assertFalse(check_password_strength("AAAAAAAA1!"))  # fails lowercase character
+        self.assertTrue(check_password_strength("aAAAAAAA1!"))   # okay
+
+        self.assertFalse(check_password_strength("AAAAAAAA1a"))  # fails special character
+        self.assertTrue(check_password_strength("aAAAAAAA1!"))   # okay
+
     def tearDown(self):
     	files = [keyfile, keyfile_out, test_file_to_encript, test_file_to_encript + ENCRIPTED_EXTENSION]
 
