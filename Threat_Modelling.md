@@ -1,6 +1,6 @@
 # Threat Modelling for PARSA Project
 This document's purpose is to show if PARSA is safe to use or not. </br>
-The potential vulnerabilities are listed below, followed by their aversion.
+The potential attacks (i.e. vulnerabilities) are listed below, followed by their prevention.
 
 ## Potential Attacks
 ### Attack on d (decriptor)
