@@ -23,7 +23,7 @@ TAIL_KEYFILE = "========= END PUBLIC KEYFILE - PARSA =========\n"
 
 def safe_prime_bm(bit_length, count_primes):
     start = time.time()
-    bm_bitlength = 512
+    bm_bitlength = 256
 
     safe_prime(bm_bitlength)
 
@@ -74,9 +74,11 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
 
         while True:
             password = getpass("[*] Please enter the password to use for the encription: ")
-            password_check = getpass("[*] Please re-enter the password: ")
 
-            check_password_strength(password)
+            if not check_password_strength(password):
+                continue
+
+            password_check = getpass("[*] Please re-enter the password: ")
 
             if password_check == password:
                 break

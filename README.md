@@ -15,4 +15,4 @@ Uses RSA Algorithm to encript files. No private key is needed tho, only a passwo
  - no obvious weakness, see [here](Threat_Modelling.md)
 
 ## TODO
-- 
+- files with ascii encoding work, check functionality with other file types
