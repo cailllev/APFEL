@@ -70,3 +70,6 @@ The potential attacks (i.e. vulnerabilities) are listed below, followed by their
  - delete keyfile, no more decripting possible
    - none, same as with normal rsa, if keyfile gone, you done
    - => as safe as rsa
+   
+## Conclusion
+Regarding all mentioned attacks above, this only has potential attack vectors in the RSA or Password aspects. But the password and RSA requirements are up to date, so this is at least as secure as any service that uses passwords or 2048bit RSA.
