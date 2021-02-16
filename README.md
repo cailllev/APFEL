@@ -15,4 +15,6 @@ Uses RSA Algorithm to encript files. No private key is needed tho, only a passwo
  - no obvious weakness, see [here](Threat_Modelling.md)
 
 ## TODO
-- files with ascii encoding work, check functionality with other file types
+- files with ascii content work, check functionality with other file types
+- check if pow() can be optimized via square-and-add
+- this project, but with Elliptic Curves instead RSA
