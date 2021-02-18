@@ -2,6 +2,9 @@ __pycache__
 
 *.txt
 *.py
+*.pub
+*.parsa
 
+!utils.py
 !file_encriptor.py
 !test_file_encriptor.py
