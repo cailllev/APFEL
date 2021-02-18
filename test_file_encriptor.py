@@ -1,10 +1,13 @@
-import unittest
 import os
+import secrets
 import string
+import unittest
+
+from random import choice
+from sage.all import is_prime
 
 from file_encriptor import *
-from sage.all import is_prime
-from random import choice
+from utils import *
 
 
 keyfile = "test_keyfile"
@@ -45,30 +48,27 @@ class FileEncriptorTest(unittest.TestCase):
         self.assertEqual(e, e_out)
 
     def test_safe_prime(self):
-        n_len = 2048
+        n_len = 512
         delta = 9
         p_length_bit = n_len // 2 + delta
         q_length_bit = n_len - p_length_bit
 
-        start = time.time()
         print("*******************************************************")
         safe_prime_bm(n_len, 2)
         print("*******************************************************")
 
+        start = time.time()
         p = safe_prime(p_length_bit)
         q = safe_prime(q_length_bit)
-        dur = start - time.time()
+        dur = round(time.time() - start)
 
+        print(str(dur) + " seconds to create 2 primes for " + str(n_len) + " bit RSA")
         print("*******************************************************")
-        print(str(dur) + " seconds to create 2 primes for 2048 bit RSA")
-        print("*******************************************************")
-
-        n = p*q
 
         self.assertTrue(ZZ(p).is_prime())
         self.assertTrue(ZZ(q).is_prime())
-        self.assertTrue(ZZ((p-1)/2).is_prime())
-        self.assertTrue(ZZ((q-1)/2).is_prime())
+        self.assertTrue(ZZ((p-1)//2).is_prime())
+        self.assertTrue(ZZ((q-1)//2).is_prime())
 
     def test_convert(self):
         n_bit_len = 8
@@ -327,6 +327,69 @@ class FileEncriptorTest(unittest.TestCase):
     		if os.path.isfile(f):
     			os.remove(f)
     			print("[#] Cleanup, removed " + f)
+
+
+    # UNUSED TESTS
+    def my_pow_test(self):
+        """
+        don't test this, own implemenation is as slow as pow
+        """
+        for x in range(1,20):
+            for e in range(1,20):
+                for m in range(2,20):
+                    self.assertEqual(my_pow(x,e,m), pow(x,e,m))
+
+        x = random.randint(2**2047, 2**2048)
+        e = random.randint(2**2047, 2**2048)
+        m = random.randint(2**2048, 2**2049)
+
+        self.assertEqual(my_pow(x,e,m), pow(x,e,m))
+
+        my_total = 0
+        pow_total = 0
+        for i in range(100):
+            start = time.time()
+            my_pow(x,e,m)
+            my_total += (time.time() - start)
+
+            start = time.time()
+            my_pow(x,e,m)
+            pow_total += (time.time() - start)
+
+        print("***********************")
+        print("Normal pow time: " + str(round(pow_total, 3)) + "s")
+        print("My pow time:     " + str(round(my_total, 3)) + "s")
+        print("***********************")
+
+        # self.assertTrue(my_total <= pow_total)
+
+    def my_is_prime_test(self):
+        """
+        don't test this, own implemenation is way slower and instable
+        """
+        bit_length = 2048
+
+        for i in range(1000):
+            p = secrets.randbelow(2 ** (bit_length + 1))
+            self.assertEqual(ZZ(p).is_prime(), my_is_prime(p))
+
+        my_total = 0
+        ZZ_total = 0
+        for i in range(2**18):
+            start = time.time()
+            my_is_prime(p)
+            my_total += (time.time() - start)
+
+            start = time.time()
+            ZZ(p).is_prime()
+            ZZ_total += (time.time() - start)
+
+        print("************************")
+        print("ZZ is prime time: " + str(round(ZZ_total, 3)) + "s")
+        print("My is prime time: " + str(round(my_total, 3)) + "s")
+        print("************************")
+
+        # self.assertTrue(my_total <= ZZ_total)
 
 
 if __name__ == '__main__':

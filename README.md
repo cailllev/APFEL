@@ -12,9 +12,12 @@ Uses RSA Algorithm to encript files. No private key is needed tho, only a passwo
 - ```-s``` or ```--save``` to save the decripted file
 
 ## Threat Modelling
- - no obvious weakness, see [here](Threat_Modelling.md)
+- no obvious weakness, see [here](Threat_Modelling.md)
 
 ## TODO
-- files with ascii content work, check functionality with other file types
-- check if pow() can be optimized via square-and-add
 - this project, but with Elliptic Curves instead RSA
+- translate this to C or Java, everything is so slow in python
+
+## Implementation Comments
+- pow() and "squarre-and-mul-pow()", i.e. my_pow() are almost equally slow (max 1% diff) -> use standard pow()
+- ZZ(p).is_prime() is about 2 to 3 times faster and more stable than my_is_prime() -> use ZZ(p).is_prime()

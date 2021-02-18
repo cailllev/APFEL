@@ -1,20 +1,20 @@
 import argparse
-import sys
-import secrets
-import time
-import os.path
-import getpass
 import bcrypt
+import getpass
+import os.path
 import random
+import secrets
+import sys
+import time
 
-from sage.all import ZZ, random_prime, next_prime, inverse_mod, gcd
 from getpass import getpass
 from math import ceil, floor, log
-
+from sage.all import ZZ, random_prime, next_prime, inverse_mod, gcd
 from string import punctuation
 
+from utils import *
 
-BASE = 256  # each char has one byte
+
 ENCRIPTED_EXTENSION = ".parsa"
 KEYFILE_EXTENSION = ".pub"
 
@@ -29,9 +29,9 @@ def safe_prime_bm(bit_length, count_primes):
     safe_prime(bm_bitlength)
 
     diff = time.time() - start
-    estimate = round(diff * 2**(bit_length // bm_bitlength) * count_primes * 8)
+    estimate = round(diff * 2**(bit_length // bm_bitlength) * count_primes)
 
-    print(f"[*] Estimation to create {count_primes} safe primes: ~ {str(estimate)}s.")
+    print(f"[*] Estimation to create {count_primes} safe {bit_length//count_primes}bit primes: ~ {str(estimate)}s.")
 
 
 def safe_prime(bit_length):
@@ -52,7 +52,7 @@ def prime(bit_length):
     while True:
         p = random.randint(2 ** bit_length, 2 ** (bit_length + 1))
 
-        # return if safe prime
+        # return if prime
         if ZZ(p).is_prime():
             return int(p)
 
@@ -79,7 +79,7 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
 
     delta = 5 + secrets.randbelow(10)
     p_length_bit = n_len // 2 + delta
-    q_length_bit = n_len - p_length_bit
+    q_length_bit = n_len - p_length_bit - 1
 
     if debug:
         p = prime(p_length_bit)
