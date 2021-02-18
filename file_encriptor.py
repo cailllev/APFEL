@@ -5,6 +5,7 @@ import time
 import os.path
 import getpass
 import bcrypt
+import random
 
 from sage.all import ZZ, random_prime, next_prime, inverse_mod, gcd
 from getpass import getpass
@@ -30,14 +31,29 @@ def safe_prime_bm(bit_length, count_primes):
     diff = time.time() - start
     estimate = round(diff * 2**(bit_length // bm_bitlength) * count_primes * 8)
 
-    print(f"[*] Estimation to create {count_primes} safe primes: {str(estimate)}s.")
+    print(f"[*] Estimation to create {count_primes} safe primes: ~ {str(estimate)}s.")
 
 
 def safe_prime(bit_length):
-    start = time.time()
     while True:
-        p = random_prime(2 ** bit_length, False, 2 ** (bit_length-1))
-        if ZZ((p - 1) / 2).is_prime():
+        p = secrets.randbelow(2 ** (bit_length + 1))
+
+        # skip if too small
+        if p.bit_length() < bit_length:
+            continue
+
+        # return if safe prime
+        if ZZ(p).is_prime() and ZZ((p - 1) // 2).is_prime():
+            return int(p)
+
+
+# this function is only for testing and debugging, unsafe to use for real application!
+def prime(bit_length):
+    while True:
+        p = random.randint(2 ** bit_length, 2 ** (bit_length + 1))
+
+        # return if safe prime
+        if ZZ(p).is_prime():
             return int(p)
 
 
@@ -49,8 +65,12 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
     if os.path.isfile(keyfile_out):
         raise FileExistsError("Keyfile " + keyfile_out + " already exists.")
 
-    # test if in debug mode
-    if password: 
+    # test if in debug / testing mode
+    debug = True
+    if password is None:
+        debug = False
+
+    if debug: 
         assert n_len >= 32, "[!] Length of n has to be at least 32 bit, functionality wise."
     else:
         assert n_len >= 2048, "[!] Length of n has to be at least 2048 bit, security wise."
@@ -59,19 +79,20 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
 
     delta = 5 + secrets.randbelow(10)
     p_length_bit = n_len // 2 + delta
-    q_length_bit = n_len - p_length_bit + 1
+    q_length_bit = n_len - p_length_bit
 
-    safe_prime_bm(n_len//2, 2)
-    p = safe_prime(p_length_bit)
-    q = safe_prime(q_length_bit)
+    if debug:
+        p = prime(p_length_bit)
+        q = prime(q_length_bit)
+    else:
+        safe_prime_bm(n_len//2, 2)
+        p = safe_prime(p_length_bit)
+        q = safe_prime(q_length_bit)
 
     n = p*q
     phi = (p-1)*(q-1)
 
-    debug = True
-    if password is None:
-        debug = False
-
+    if not debug:
         while True:
             password = getpass("[*] Please enter the password to use for the encription: ")
 
@@ -106,6 +127,9 @@ def init_keyfile(name, password=None, n_len=2048, hash_rounds=16):
             if e > n_len - offset_bit_size:
                 print("[*] Found valid d and e")
                 break
+
+    e = int(e)
+    d = int(d)
 
     assert e * d % phi == 1, "[!] e * d != 1 (mod phi(n))"
 
@@ -175,12 +199,12 @@ def encript(filename, keyfile):
 
     e = int(e.strip())
 
-    f = open(filename, "r")
+    f = open(filename, "rb")
     data = f.readlines()
     f.close()
 
-    data = "".join(data)
-    m = string_to_hex_nums(data, n_len)
+    data = b"".join(data)
+    m = bytes_to_hex_nums(data, n_len)
     cipher = []
 
     # m^e mod n
@@ -227,14 +251,25 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
         m = pow(c, d, n)
         plain.append(hex(m)[2:])
     
-    plain = hex_nums_to_string(plain, n_len)
+    plain = hex_nums_to_bytes(plain, n_len)
 
     print("[*] Successfully decripted contents of " + filename + ".")
     if show_decripted:
-        print("[*] Result of decription see below.")
-        print("*******************************")
-        print(plain)
-        print("*******************************")
+        can_be_shown = True
+        plain_decoded = ""
+        try:
+            plain_decoded = plain.decode()
+        except:
+            can_be_shown = False
+
+        if can_be_shown:     
+            print("[*] Result of decription see below.")
+            print("*******************************")
+            print(plain_decoded)
+            print("*******************************")
+        else:
+            print("[*] Result of decription cannot be shown (is in bytes format).")
+
 
     if save_decripted:
         outfile = filename[:-len(ENCRIPTED_EXTENSION)]
@@ -242,20 +277,20 @@ def decript(filename, keyfile, password=None, show_decripted=False, save_decript
         if os.path.isfile(outfile):
             raise FileExistsError("[!] Decripted outfile " + outfile + " already exists.")
 
-        m = open(outfile, "w")
+        m = open(outfile, "wb")
         m.write(plain)
         m.close()
         print("[*] Contents saved in " + outfile + ".")
 
 
-def string_to_hex_nums(string, n_len):
-    if not isinstance(string, str):
-        raise Exception("Only string allowed: ", string)
+def bytes_to_hex_nums(bytes_in, n_len):
+    if not isinstance(bytes_in, bytes):
+        raise Exception("Only bytes allowed: ", bytes_in)
 
     block_size = n_len // 4  # n == 128 -> 32 hex chars per block 
-    blocks = ceil((len(string) * 2) / block_size)
+    blocks = ceil((len(bytes_in) * 2) / block_size)
 
-    as_hex = string.encode(encoding='ascii').hex()
+    as_hex = bytes_in.hex()
 
     hex_nums = []
     for i in range(blocks):
@@ -268,7 +303,7 @@ def string_to_hex_nums(string, n_len):
     return hex_nums
 
 
-def hex_nums_to_string(hex_nums, n_len):
+def hex_nums_to_bytes(hex_nums, n_len):
     if not isinstance(hex_nums, list) or not isinstance(hex_nums[0], str):
         raise Exception("Only list of hex nums allowed: ", hex_nums)
     
@@ -287,7 +322,7 @@ def hex_nums_to_string(hex_nums, n_len):
     hex_nums[-1] = hex_nums[-1][:i+1]
 
     recreated = "".join(hex_nums)
-    s = bytes.fromhex(recreated).decode(encoding='ascii')
+    s = bytes.fromhex(recreated)
 
     return s
 

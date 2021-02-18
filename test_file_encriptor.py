@@ -30,51 +30,71 @@ class FileEncriptorTest(unittest.TestCase):
         n_out, e_out, _, _ = create_keyfile(n_bit_len)
 
         k = open(keyfile_out, "r")
-        n, e, _ = k.readlines()[1:-1]
+        n_all, e, _ = k.readlines()[1:-1]
         k.close()
 
-        self.assertEqual(n.strip(), str(n_out).strip() + ":" + str(n_bit_len))
-        self.assertEqual(e.strip(), str(e_out).strip())
+        n_all = n_all.strip()
+        n, _ = n_all.split(":")
+        n = n.strip()
+        e = int(e.strip())
 
-    def test_len_n(self):
-        n_bit_len = 128
+        self.assertTrue(n_bit_len + 1 >= int(n).bit_length())
+        self.assertTrue(int(n).bit_length() >= n_bit_len)
 
-        for _ in range(100):
-            create_keyfile(n_bit_len)
+        self.assertEqual(n_all, str(n_out) + ":" + str(n_bit_len))
+        self.assertEqual(e, e_out)
 
-            k = open(keyfile_out, "r")
-            n, _, _ = k.readlines()[1:-1]
-            k.close()
+    def test_safe_prime(self):
+        n_len = 2048
+        delta = 9
+        p_length_bit = n_len // 2 + delta
+        q_length_bit = n_len - p_length_bit
 
-            n = int(n.split(":")[0])
+        start = time.time()
+        print("*******************************************************")
+        safe_prime_bm(n_len, 2)
+        print("*******************************************************")
 
-            self.assertTrue(int(n).bit_length() >= n_bit_len)
+        p = safe_prime(p_length_bit)
+        q = safe_prime(q_length_bit)
+        dur = start - time.time()
+
+        print("*******************************************************")
+        print(str(dur) + " seconds to create 2 primes for 2048 bit RSA")
+        print("*******************************************************")
+
+        n = p*q
+
+        self.assertTrue(ZZ(p).is_prime())
+        self.assertTrue(ZZ(q).is_prime())
+        self.assertTrue(ZZ((p-1)/2).is_prime())
+        self.assertTrue(ZZ((q-1)/2).is_prime())
 
     def test_convert(self):
         n_bit_len = 8
 
-        s = "A"
+        s = b"A"
         i = ["41"]
-        self.assertEqual(string_to_hex_nums(s, n_bit_len), i)
-        self.assertEqual(hex_nums_to_string(i, n_bit_len), s)
+        self.assertEqual(bytes_to_hex_nums(s, n_bit_len), i)
+        self.assertEqual(hex_nums_to_bytes(i, n_bit_len), s)
 
-        s = "AA"
+        s = b"AA"
         i = ["41", "41"]
-        self.assertEqual(string_to_hex_nums(s, n_bit_len), i)
-        self.assertEqual(hex_nums_to_string(i, n_bit_len), s)
+        self.assertEqual(bytes_to_hex_nums(s, n_bit_len), i)
+        self.assertEqual(hex_nums_to_bytes(i, n_bit_len), s)
 
-        s = "AABBCC"
+        s = b"AABBCC"
         i = ["41", "41", "42", "42", "43", "43"]
 
-        self.assertEqual(string_to_hex_nums(s, n_bit_len), i)
-        self.assertEqual(hex_nums_to_string(i, n_bit_len), s)
+        self.assertEqual(bytes_to_hex_nums(s, n_bit_len), i)
+        self.assertEqual(hex_nums_to_bytes(i, n_bit_len), s)
 
         n_bit_len = 16
-        s = "AABBCCDD"
+        s = b"AABBCCDD"
         i = ["4141", "4242", "4343", "4444"]
 
-        self.assertEqual(string_to_hex_nums(s, n_bit_len), i)
-        self.assertEqual(hex_nums_to_string(i, n_bit_len), s)
+        self.assertEqual(bytes_to_hex_nums(s, n_bit_len), i)
+        self.assertEqual(hex_nums_to_bytes(i, n_bit_len), s)
  
     def test_create_salt(self):    
     	rounds = 16
@@ -130,8 +150,8 @@ class FileEncriptorTest(unittest.TestCase):
     		chars = chars_in_block * j
 
 	    	for i in range(chars, chars + chars_in_block):
-	    		string = "P"*(i+1)  # P = 0x50
-	    		as_hex_nums = string_to_hex_nums(string, n_len)
+	    		bytes_in = b"P"*(i+1)  # P = 0x50
+	    		as_hex_nums = bytes_to_hex_nums(bytes_in, n_len)
 	    		
 	    		self.assertEqual(len(as_hex_nums), j+1)
 
@@ -139,8 +159,8 @@ class FileEncriptorTest(unittest.TestCase):
 	    		self.assertEqual(as_hex_nums[-1].count("50"), 1 + i % chars_in_block)
 	    		self.assertEqual(as_hex_nums[-1].count("0"), block_size - 1 - (i % chars_in_block))
 
-	    		as_string = hex_nums_to_string(as_hex_nums, n_len)
-	    		self.assertEqual(string, as_string)
+	    		bytes_out = hex_nums_to_bytes(as_hex_nums, n_len)
+	    		self.assertEqual(bytes_in, bytes_out)
 
     def test_encript_and_decript_small_single_block(self):
         create_keyfile(n_len=256, hash_rounds=12)
@@ -207,9 +227,47 @@ class FileEncriptorTest(unittest.TestCase):
         except:
             pass
 
+    def test_encript_and_decript_non_ascii(self):
+        create_keyfile(n_len=512, hash_rounds=12)
+
+        f = open(test_file_to_encript, "wb")
+        contents = []
+        for i in range(1, 256):
+            contents.append(i)
+
+        contents = bytearray(contents)
+
+        f.write(contents)
+        f.close()
+        
+        try:
+            os.remove(test_file_to_encript + ENCRIPTED_EXTENSION)
+        except:
+            pass
+
+        encript(test_file_to_encript, keyfile_out)
+
+        try:
+            os.remove(test_file_to_encript)
+        except:
+            pass
+
+        decript(test_file_to_encript + ENCRIPTED_EXTENSION, keyfile_out, password, True, True)
+
+        f = open(test_file_to_encript, "rb")
+        read = b"".join(f.readlines())
+        f.close()
+
+        self.assertEqual(contents, read)
+
+        try:
+            os.remove(test_file_to_encript)
+        except:
+            pass
+
     def test_encript_and_decript_multiple_blocks(self):
         n_len = 128
-        create_keyfile(n_len)
+        create_keyfile(n_len, 4)
 
         random_file_contents = ""
 

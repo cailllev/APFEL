@@ -47,12 +47,25 @@ The potential attacks (i.e. vulnerabilities) are listed below, followed by their
    - => small plaintext attack fails
 
 ### Attack on n (modulus)
- - find factors of n (unsafe generation primes p & q)
+ - find factors of n (unsafe primes p & q)
    - use safe primes, (p-1)/2 is still a prime
    - enforce large n
    - => finding factors fails
 
- - find factors of small n
+ - find factors of n (only sudo random number gen)
+   - use secrets.randbelow
+   - => finding factors fails
+
+ - find factors of n (p & q close together)
+   - p is 5 ... 14 bits bigger than q
+   - with 2048bits n:
+     - p = 1030 ... 1035 bits
+     - q = 1021 ... 1025 bits
+     - p - q ≃ 2^1029.95
+     - -> cannot be cracked and gets larger with large n
+   - => finding factors fails
+
+ - find factors of n (small n)
    - enforce large n
    - => finding factors fails
 
