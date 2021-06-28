@@ -39,8 +39,8 @@ h(m) == s**e % n
 
 ### Math:
 ```
-h(m) = (h(m)**d)**e % n   	-> rewrite
- => (h(m)**(d**e) % n      -> same as above
+h(m) = (h(m)**d)**e % n  	-> rewrite
+ => (h(m)**(d**e) % n    	-> same as above
  => h(m)**1 % n
 -> everyone can check your signature with public key (n,e)
 -> no one can create it, only you know d
