@@ -45,29 +45,34 @@ h(m) = (h(m)**d)**e % n
  
 
 # El Gamal & Diffie Hellman (discrete logarithm)
-p:	modulus				is prime and part of public key
-g:	generator			is random and part of public key
+| var | name |  comments |
+|---|---|---|
+| p |	modulus	| is prime and part of public key |
+| g | generator	|is random and part of public key |
 
 ## Encription & Decription -> Confidentiality:
-Alice
-a:	key					random chosen and private
-A =	g**a % p			part of public key
+### Algorithm
+#### Alice
+| var | equation |  comments |
+|---|---|---|
+| a | | her key,	random chosen and private |
+| A | =	g**a % p	|	part of public key |
+Alice sends Bob (p,g,A) |
 
-Alice sends Bob (p,g,A)
-
-Bob
-m:	plain				the plain text to encrypt
-b:	key					random chosen and private
-B =	g**b % p			part of public key
-c =	A**b * m % p		cipher of m
-
+#### Bob
+| var | equation |  comments |
+|---|---|---|
+| m || the plain text to encrypt |
+| b || his key, random chosen and private |
+| B | =	g**b % p	|	part of public key |
+| c | =	A**b * m % p	|	cipher of m |
 Bob sends Alice (B,c)
 
-Alice
+#### Alice
 m =	c * B**(p-1-a) % p	plain again
 
-Explanation:
-m = c * B**(p-1-a) % p 
+### Math:
+```m = c * B**(p-1-a) % p 
  => (A**b * m % p) * B**(p-1-a) % p 	-> extend c, i.e. c = (A**b * m % p)
  => m * A**b * B**(p-1-a) % p			-> rewrite, take m to front
  => m * A**b * B**(p-1) * B**(-a) % p	-> rewrite, B**(p-1-a) == B**(p-1) * B**(-a)
@@ -79,10 +84,9 @@ m = c * B**(p-1-a) % p
 -> everyone can create ciphers
 -> only you can decript it because only you know a
 -> safe bc difficult to find log_base_g(a) % p, i.e. difficult to find x when g**x % p == a
+```
 
--------------------------------
-Sign and Check -> Authenticity:
--------------------------------
+## Sign and Check -> Authenticity:
 h()								any safe hash function
 k = [2 ... p-2]					random number, just has to be relative prime to (p-1)
 r = g**k % p					part 1 of signature
