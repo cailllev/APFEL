@@ -9,11 +9,11 @@
 | d 	| = e^-1 % n	| is private, d is so that d * e % phi = 1 (otherwise RSA wouldn't work) |
 
 ## Encription & Decription -> Confidentiality:
-| var | comments |
-|---|---|
-| m | the plain text to encrypt |
-| c = m**e % n | ciphertext |
-| m = c**d % n | the plaintext again |
+| var | equation |  comments |
+|---|---|---|
+| m || the plain text to encrypt |
+| c |= m**e % n | ciphertext |
+| m |= c**d % n | the plaintext again |
 
 ### Math:
 ```
