@@ -10,8 +10,8 @@ python3 apfel.py -h
 ```
   -i, --init     to create a keyfile with given name
   -k, --keyfile  name of the keyfile
-  -e, --encript  to encrypt a file with given name
-  -d, --decript  to decrypt a file with given name
+  -e, --encrypt  to encrypt a file with given name
+  -d, --decrypt  to decrypt a file with given name
   -v, --verbose  to print the decripted file
   -s, --save     to save the decripted file
 ```
