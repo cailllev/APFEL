@@ -1,4 +1,4 @@
-# OWN - Asymmetric Password File Encryption Library
+# Asymmetric Password File Encryption Library
 ## Description
 Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is needed tho, only a password. The password is transformed to a (prime) number, this is then used as the decriptor / the secret.
 
