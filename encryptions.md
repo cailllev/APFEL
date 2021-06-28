@@ -17,10 +17,10 @@
 
 ### Math:
 ```
-m = c**d % n 
- => (m**e)**d % n 	-> extend c, i.e. c = m**e
- => m**(e*d) % n 	-> rewrite
- => m**(1) % n 		-> e*d % n = 1
+m = c**d % n  	     -> extend c, i.e. c = m**e
+ => (m**e)**d % n   -> rewrite
+ => m**(e*d) % n 	  -> e*d % n = 1
+ => m**(1) % n 		   -> m**1 == m
  => m
 -> everyone can create ciphers with your public key (n,e)
 -> only you can decript it, only you know d
