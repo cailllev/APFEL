@@ -62,7 +62,7 @@ s**e % n               	-> extend s
 |---|---|---|
 | a | | her key,	random chosen and private |
 | A | =	g**a % p	|	part of public key |
-Alice sends Bob (p,g,A) |
+##### Alice sends Bob (p,g,A)
 
 #### Bob
 | var | equation |  comments |
@@ -71,10 +71,10 @@ Alice sends Bob (p,g,A) |
 | b || his key, random chosen and private |
 | B | =	g**b % p	|	part of public key |
 | c | =	A**b * m % p	|	cipher of m |
-Bob sends Alice (B,c)
+##### Bob sends Alice (B,c)
 
 #### Alice
-m =	c * B**(p-1-a) % p	plain again
+m =	c * B**(p-1-a) % p	-> plain again
 
 ### Math:
 ```m = c * B**(p-1-a) % p 
