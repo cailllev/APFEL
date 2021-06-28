@@ -3,6 +3,7 @@
 Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is needed tho, only a password. The password is transformed to a (prime) number, this is then used as the decriptor / the secret.
 
 ## Usage
+### Help
 ```python3 file_encriptor.py -h```
 - ```-i``` or ```--init``` to create a keyfile with given name
 - ```-k``` or ```--keyfile``` name of the keyfile, contains ```(n,e,diff)```
@@ -10,6 +11,15 @@ Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is need
 - ```-d``` or ```--decript``` to decript a file with given name
 - ```-v``` or ```--verbose``` to print the decripted file
 - ```-s``` or ```--save``` to save the decripted file
+
+### Init Keyfile
+```python3 file_encriptor.py -i <keyfile name>```
+
+### Encrypt File
+```python3 file_encriptor.py -k <keyfile name> -e <file to encrypt>```
+
+### Decrypt File
+```python3 file_encriptor.py -i <keyfile name> -d <file to decrypt> [-v] [-s]```
 
 ## Threat Modelling
 - no obvious RSA weakness, see [here](Threat_Modelling.md)
