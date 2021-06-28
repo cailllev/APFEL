@@ -34,6 +34,7 @@ python3 apfel.py -h
 - update threat modelling
 - update usage help print
 - rename files, correct typos
+- create pypi package
 
 ## Implementation Comments
 - 
