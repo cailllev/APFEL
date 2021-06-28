@@ -33,7 +33,9 @@ m = c**d % n      	-> extend c, i.e. c = m**e
 | s | = h(m)**d % n | create the signature of hashed m |
 
 signature is valid when:
+```
 h(m) == s**e % n
+```
 
 ### Math:
 ```
@@ -93,7 +95,9 @@ r = g**k % p					part 1 of signature
 s = (h(m) - a*r)*k^-1 % (p-1)	part 2 of signature
 
 signature is valid when:
+```
 g**h(m) == A**r * r**s % p
+```
 
 Explanation:
 h(m) = a*r + s*k % (p-1)				-> rewrite from above, s = (h(m) - a*r)*k^-1 % (p-1)
