@@ -17,13 +17,13 @@ python3 apfel.py -h
 ```
 
 ### Init Keyfile
-```python3 file_encriptor.py -i <keyfile name>```
+```python3 apfel.py -i <keyfile name>```
 
 ### Encrypt File
-```python3 file_encriptor.py -k <keyfile name> -e <file to encrypt>```
+```python3 apfel.py -k <keyfile name> -e <file to encrypt>```
 
 ### Decrypt File
-```python3 file_encriptor.py -i <keyfile name> -d <file to decrypt> [-v] [-s]```
+```python3 apfel.py -i <keyfile name> -d <file to decrypt> [-v] [-s]```
 
 ## Threat Modelling
 - no obvious RSA weakness, see [here](Threat_Modelling.md)
