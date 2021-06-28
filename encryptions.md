@@ -27,10 +27,10 @@ m = c**d % n      	-> extend c, i.e. c = m**e
 ```
 
 ## Sign and Check -> Authenticity:
-| var | comments |
-|---|---|
-| h() | any safe hash function |
-| s = h(m)**d % n | create the signature of hashed m |
+| var | equation |  comments |
+|---|---|---|
+| h() || any safe hash function |
+| s | = h(m)**d % n | create the signature of hashed m |
 
 signature is valid when:
 h(m) == s**e % n
@@ -44,15 +44,11 @@ h(m) = (h(m)**d)**e % n
 ```
  
 
-*************************************************************************************************************
-El Gamal & Diffie Hellman (discrete logarithm)
-**********************************************
+# El Gamal & Diffie Hellman (discrete logarithm)
 p:	modulus				is prime and part of public key
 g:	generator			is random and part of public key
 
--------------------------------------------
-Encription & Decription -> Confidentiality:
--------------------------------------------
+## Encription & Decription -> Confidentiality:
 Alice
 a:	key					random chosen and private
 A =	g**a % p			part of public key
