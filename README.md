@@ -29,6 +29,7 @@ python3 apfel.py -h
 - no obvious RSA weakness, see [here](Threat_Modelling.md)
 
 ## TODO
+- correct formatting on encryptions.md
 - add ECC and El Gamal encryption algorithm -> encryption and decryption must be same algo
 - implement with [pycryptodome](https://pycryptodome.readthedocs.io/en/latest/), only the creation of the parameters is own, the algos should be from [pycryptodome](https://pycryptodome.readthedocs.io/en/latest/)
 - update threat modelling
