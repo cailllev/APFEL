@@ -1,4 +1,5 @@
 # RSA (multiplicative Groups)
+| var | explanation |
 |---|---|
 | p	| is prime and secret (never used again) |
 | q	| is prime and secret (never used again) |
