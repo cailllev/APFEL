@@ -1,6 +1,6 @@
 # OWN - File Encription
 ## Description
-Uses RSA Algorithm to encript files. No private key is needed tho, only a password. The password is transformed to a bigger (prime) number, this is then used as the decriptor (d).
+Uses the RSA / ECC / El Gamal algorithm to encript files. No private key is needed tho, only a password. The password is transformed to a bigger (prime) number, this is then used as the decriptor (d).
 
 ## Usage
 ```python3 file_encriptor.py -h```
