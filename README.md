@@ -5,7 +5,7 @@ Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is need
 ## Usage
 ### Help
 ```
-python3 file_encriptor.py -h
+python3 apfel.py -h
 ```
 ```
   -i, --init     to create a keyfile with given name
@@ -33,6 +33,7 @@ python3 file_encriptor.py -h
 - implement with [pycryptodome](https://pycryptodome.readthedocs.io/en/latest/), only the creation of the parameters is own, the algos should be from [pycryptodome](https://pycryptodome.readthedocs.io/en/latest/)
 - update threat modelling
 - update usage help print
+- rename files, correct typos
 
 ## Implementation Comments
 - 
