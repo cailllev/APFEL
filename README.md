@@ -6,6 +6,8 @@ Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is need
 ### Help
 ```
 python3 file_encriptor.py -h
+```
+```
   -i, --init     to create a keyfile with given name
   -k, --keyfile  name of the keyfile
   -e, --encript  to encript a file with given name
