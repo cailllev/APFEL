@@ -1,6 +1,6 @@
 # RSA (multiplicative Groups)
 | var | equation |  comments |
-|---|---|
+|---|---|---|
 | p	|| is prime and secret (never used again) |
 | q	|| is prime and secret (never used again) |
 | n | = p * q	| is public |
