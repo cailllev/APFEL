@@ -12,8 +12,8 @@ python3 apfel.py -h
   -k, --keyfile  name of the keyfile
   -e, --encrypt  to encrypt a file with given name
   -d, --decrypt  to decrypt a file with given name
-  -v, --verbose  to print the decripted file
-  -s, --save     to save the decripted file
+  -v, --verbose  to print the decrypted content
+  -s, --save     to save the decrypted content to a new file
 ```
 
 ### Init Keyfile
