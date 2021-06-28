@@ -1,12 +1,12 @@
 # RSA (multiplicative Groups)
-| var | comments |
+| var | equation |  comments |
 |---|---|
-| p	| is prime and secret (never used again) |
-| q	| is prime and secret (never used again) |
-| n = p * q	| is public |
-| phi = (p-1) * (q-1)	| size of multiplicative group Zn* |
-| e 	= 65537	| is public (most of the time 65537, just has to be relative prime to phi) |
-| d 	= e^-1 % n	| is private, d is so that d * e % phi = 1 (otherwise RSA wouldn't work) |
+| p	|| is prime and secret (never used again) |
+| q	|| is prime and secret (never used again) |
+| n | = p * q	| is public |
+| phi | = (p-1) * (q-1)	| size of multiplicative group Zn* |
+| e 	| = 65537	| is public (most of the time 65537, just has to be relative prime to phi) |
+| d 	| = e^-1 % n	| is private, d is so that d * e % phi = 1 (otherwise RSA wouldn't work) |
 
 ## Encription & Decription -> Confidentiality:
 | var | comments |
