@@ -1,20 +1,16 @@
-```
-*************************************************************************************************************
-RSA (multiplicative Groups)
-***************************
-p					is prime and secret (never used again)
-q					is prime and secret (never used again)
-n 	= p*q			is public
-phi = (p-1)*(q-1)	size of multiplicative group Zn*
-e 	= 65537			is public (most of the time 65537, just has to be relative prime to phi)
-d 	= e^-1 % n		is private, d is so that d*e % phi = 1 (otherwise RSA wouldn't work)
+# RSA (multiplicative Groups)
+|---|---|
+| p	| is prime and secret (never used again)
+| q	| is prime and secret (never used again)
+| n = p * q	| is public
+| phi = (p-1) * (q-1)	| size of multiplicative group Zn*
+| e 	= 65537	| is public (most of the time 65537, just has to be relative prime to phi)
+| d 	= e^-1 % n	| is private, d is so that d * e % phi = 1 (otherwise RSA wouldn't work)
 
--------------------------------------------
-Encription & Decription -> Confidentiality:
--------------------------------------------
-m					the plain text to encrypt
-c = m**e % n		ciphertext
-m = c**d % n		the plaintext again
+## Encription & Decription -> Confidentiality:
+- m					the plain text to encrypt
+- c = m**e % n		ciphertext
+- m = c**d % n		the plaintext again
 
 Explanation:
 m = c**d % n 
@@ -145,7 +141,6 @@ now decrypt:
 C = M + kB * A			normal decryption, why does it work now?
 M = C - kB * A			"refactor" equation
 M = C - kA * B			from the point that "kA * B == kB * A"
-```
 
 
 
