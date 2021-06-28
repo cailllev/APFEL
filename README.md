@@ -4,13 +4,15 @@ Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is need
 
 ## Usage
 ### Help
-```python3 file_encriptor.py -h```
-- ```-i``` or ```--init``` to create a keyfile with given name
-- ```-k``` or ```--keyfile``` name of the keyfile, contains ```(n,e,diff)```
-- ```-e``` or ```--encript``` to encript a file with given name
-- ```-d``` or ```--decript``` to decript a file with given name
-- ```-v``` or ```--verbose``` to print the decripted file
-- ```-s``` or ```--save``` to save the decripted file
+```
+python3 file_encriptor.py -h
+  -i, --init     to create a keyfile with given name
+  -k, --keyfile  name of the keyfile
+  -e, --encript  to encript a file with given name
+  -d, --decript  to decript a file with given name
+  -v, --verbose  to print the decripted file
+  -s, --save     to save the decripted file
+```
 
 ### Init Keyfile
 ```python3 file_encriptor.py -i <keyfile name>```
@@ -28,6 +30,7 @@ Uses the RSA / ECC / El Gamal algorithm to encrypt files. No private key is need
 - add ECC and El Gamal encryption algorithm -> encryption and decryption must be same algo
 - implement with [pycryptodome](https://pycryptodome.readthedocs.io/en/latest/), only the creation of the parameters is own, the algos should be from [pycryptodome](https://pycryptodome.readthedocs.io/en/latest/)
 - update threat modelling
+- update usage help print
 
 ## Implementation Comments
 - 
