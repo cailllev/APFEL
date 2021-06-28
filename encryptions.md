@@ -39,7 +39,7 @@ h(m) == s**e % n
 
 ### Math:
 ```
-s**e % n              		-> extend s
+s**e % n               	-> extend s
  => (h(m)**d)**e % n   	-> rewrite exponent
  => (h(m)**(d**e) % n  	-> same as above
  => h(m)**1 % n
