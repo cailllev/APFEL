@@ -1,5 +1,5 @@
 # RSA (multiplicative Groups)
-| var | explanation |
+| var | comments |
 |---|---|
 | p	| is prime and secret (never used again) |
 | q	| is prime and secret (never used again) |
@@ -9,11 +9,14 @@
 | d 	= e^-1 % n	| is private, d is so that d * e % phi = 1 (otherwise RSA wouldn't work) |
 
 ## Encription & Decription -> Confidentiality:
-- m					the plain text to encrypt
-- c = m**e % n		ciphertext
-- m = c**d % n		the plaintext again
+| var | comments |
+|---|---|
+| m | the plain text to encrypt |
+| c = m**e % n | ciphertext |
+| m = c**d % n | the plaintext again |
 
-Explanation:
+### Math:
+```
 m = c**d % n 
  => (m**e)**d % n 	-> extend c, i.e. c = m**e
  => m**(e*d) % n 	-> rewrite
@@ -21,21 +24,24 @@ m = c**d % n
  => m
 -> everyone can create ciphers with your public key (n,e)
 -> only you can decript it, only you know d
- 
--------------------------------
-Sign and Check -> Authenticity:
--------------------------------
-h()					any safe hash function
-s = h(m)**d % n	create the signature of hashed m
+```
+
+## Sign and Check -> Authenticity:
+| var | comments |
+|---|---|
+| h() | any safe hash function |
+| s = h(m)**d % n | create the signature of hashed m |
 
 signature is valid when:
 h(m) == s**e % n
 
-Explanation:
+### Math:
+```
 h(m) = (h(m)**d)**e % n
 -> everyone can check your signature with public key (n,e)
 -> no one can create it, only you know d
 -> safe bc difficult to factor large numbers (n)
+```
  
 
 *************************************************************************************************************
