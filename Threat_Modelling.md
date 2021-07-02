@@ -66,7 +66,7 @@ The potential attacks (i.e. vulnerabilities) are listed below, followed by their
    - => finding factors fails
 
  - find factors of n (small n)
-   - enforce large n
+   - enforce large n > 3000 bits -> see https://www.keylength.com/en/8
    - => finding factors fails
 
 ### Attack on keyfile

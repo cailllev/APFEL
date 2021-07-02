@@ -58,8 +58,8 @@ class FileEncriptorTest(unittest.TestCase):
         print("*******************************************************")
 
         start = time.time()
-        p = safe_prime(p_length_bit)
-        q = safe_prime(q_length_bit)
+        p = get_prime(p_length_bit)
+        q = get_prime(q_length_bit)
         dur = round(time.time() - start)
 
         print(str(dur) + " seconds to create 2 primes for " + str(n_len) + " bit RSA")

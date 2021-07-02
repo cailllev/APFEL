@@ -1,17 +1,17 @@
-# RSA (multiplicative Groups)
+# RSA: multiplicative Groups
 | var | equation |  comments |
 |---|---|---|
-| p	|| is prime and secret (never used again) |
-| q	|| is prime and secret (never used again) |
+| p	| | is prime and secret |
+| q	| | is prime and secret |
 | n | = p * q	| is public |
 | phi | = (p-1) * (q-1)	| size of multiplicative group Zn* |
 | e 	| = 65537	| is public (most of the time 65537, just has to be relative prime to phi) |
 | d 	| = e^-1 % n	| is private, d is so that d * e % phi = 1 (otherwise RSA wouldn't work) |
 
-## Encription & Decription -> Confidentiality:
+## Encription & Decription => Confidentiality:
 | var | equation |  comments |
 |---|---|---|
-| m || the plain text to encrypt |
+| m | | the plain text to encrypt |
 | c |= m**e % n | ciphertext |
 | m |= c**d % n | the plaintext again |
 
@@ -26,10 +26,10 @@ m = c**d % n      	-> extend c, i.e. c = m**e
 -> only you can decript it, only you know d
 ```
 
-## Sign and Check -> Authenticity:
+## Sign and Check => Authenticity:
 | var | equation |  comments |
 |---|---|---|
-| h() || any safe hash function |
+| h() | | any safe hash function |
 | s | = h(m)**d % n | create the signature of hashed m |
 
 signature is valid when:
@@ -50,31 +50,31 @@ s**e % n               	-> extend s
  
 
 # El Gamal & Diffie Hellman (discrete logarithm)
-| var | name |  comments |
+| var | equation |  comments |
 |---|---|---|
-| p |	modulus	| is prime and part of public key |
-| g | generator	|is random and part of public key |
+| p | | the modulus, is prime and part of public key |
+| g | | the generator, is random and part of public key |
 
-## Encription & Decription -> Confidentiality:
+## Encription & Decription => Confidentiality:
 ### Algorithm
-#### Alice
+#### Alice's init
 | var | equation |  comments |
 |---|---|---|
 | a | | her key,	random chosen and private |
 | A | =	g**a % p	|	part of public key |
-##### Alice sends Bob (p,g,A)
+ => Alice sends Bob (p,g,A)
 
-#### Bob
+#### Bob's init
 | var | equation |  comments |
 |---|---|---|
 | m || the plain text to encrypt |
 | b || his key, random chosen and private |
 | B | =	g**b % p	|	part of public key |
 | c | =	A**b * m % p	|	cipher of m |
-##### Bob sends Alice (B,c)
+ => Bob sends Alice (B,c)
 
-#### Alice
-m =	c * B**(p-1-a) % p	-> plain again
+#### Alice's decryption
+```m =	c * B**(p-1-a) % p	-> plain again```
 
 ### Math:
 ```m = c * B**(p-1-a) % p 
@@ -91,57 +91,69 @@ m =	c * B**(p-1-a) % p	-> plain again
 -> safe bc difficult to find log_base_g(a) % p, i.e. difficult to find x when g**x % p == a
 ```
 
-## Sign and Check -> Authenticity:
-h()								any safe hash function
-k = [2 ... p-2]					random number, just has to be relative prime to (p-1)
-r = g**k % p					part 1 of signature
-s = (h(m) - a*r)*k^-1 % (p-1)	part 2 of signature
+## Sign and Check => Authenticity:
+| var | equation |  comments |
+|---|---|---|
+| h()	| |	any safe hash function |
+| k | = [2 ... p-2] |	random number, just has to be relative prime to (p-1) |
+| r | = g**k % p | part 1 of signature |
+| s | = (h(m) - a*r)*k^-1 % (p-1)	| part 2 of signature |
 
 signature is valid when:
 ```
 g**h(m) == A**r * r**s % p
 ```
 
-Explanation:
-h(m) = a*r + s*k % (p-1)				-> rewrite from above, s = (h(m) - a*r)*k^-1 % (p-1)
+### Math:
+```h(m) = a*r + s*k % (p-1)				-> rewrite from above, s = (h(m) - a*r)*k^-1 % (p-1)
  => g**h(m) = g**(a*r + s*k) % p		-> both sides g**(...)
  => g**h(m) = g**a**r * g**(s*k) % p	-> expand parentheses
  => g**h(m) = A**r * r**s % p			-> rewrite g**a => A and g**(s*k) => r**s, bc r == g**k
  => same as above
-
 -> everyone can check your signature with your public key (p,g,A)
 -> no one can create it because only you know a
-
+```
  
 *************************************************************************************************************
 El Gamal & Diffie Hellman (ECC)
 *******************************
-E = {y^2 = x^3 + ax + b}		the set of points to use for encription (comparable to Zn*)
-p:	prime						the "modulus" of the curve E
-E = EllipticCurve(GF(p),[a,b])
+| var | equation |  comments |
+|---|---|---|
+| E | = {y^2 = x^3 + ax + b} | 		the set of points to use for encription (comparable to Zn*)
+| p | |  is prime, the "modulus" of the curve E
+| E | = EllipticCurve(GF(p),[a,b]) | the curve E
 
-Alice		
-kA:	key					random chosen, private and < n
-P:	Point on E			part of public key
-n:	order of P			how many times P+P+P... is valid, must be a prime, this is now the "modulus"
-A =	kA * P				part of public key, automatically another Point on E (bc. kA < n)
+### Algorithm
+#### Alice's init
+| var | equation |  comments |
+|---|---|---|
+| kA | |  the key, random chosen, private and < n
+| P | | Point on E, part of public key
+| n | | order of P, how many times P+P+P... is valid, must be a prime, this is now the "modulus"
+| A | = kA * P | part of public key, automatically another Point on E (bc. kA < n)
 
-Alice sends Bob = (E,p,P,A)
+ => Alice sends Bob = (E,p,P,A)
 
-Bob
-m:	plain				the plain text to encrypt, smaller than n
-M = m << 8 + ?			the plain text, but it is on the curve
-kB:	key					random chosen and private
-B =	kB * P				part of public key
-C =	M + kB * A			cipher of M
+#### Bob's init
+| var | equation |  comments |
+|---|---|---|
+| m | | the plain text to encrypt, smaller than n | 
+| M | = m << 8 + x | the plain text, but it is on the curve | 
+| x | = [0...2^8] | some offset, so the m is on the curve (element of E) | 
+| kB | | the key, random chosen and private | 
+| B | = kB * P | part of public key | 
+| C | = M + kB * A | cipher of M | 
 
-Bob sends Alice (B,C)
+ => Bob sends Alice (B,C)
 
-Alice
-M =	-kA * B + C			almost plain again	
-m = M >> 8				plain again		
+#### Alice's decryption
+```
+M =	-kA * B + C
+m = M >> 8
+```
 
-Explanation:
+### Math:
+```
 Alice wants to decrypt Bob's C and knows Bobs B
 
 show that "kA * B == kB * A":
@@ -155,6 +167,5 @@ now decrypt:
 C = M + kB * A			normal decryption, why does it work now?
 M = C - kB * A			"refactor" equation
 M = C - kA * B			from the point that "kA * B == kB * A"
-
-
+`` 
 
