@@ -5,7 +5,6 @@ import sys
 
 from getpass import getpass
 from utils import *
-from key import algo_parser
 
 ENCRIPTED_EXTENSION = ".apfel"
 KEYFILE_EXTENSION = ".akey"
@@ -16,10 +15,8 @@ TAIL_KEYFILE = "========= END PUBLIC KEYFILE - APFEL =========\n"
 
 def init_keyfile(name, password=None):
 
-    keyfile_out = name + KEYFILE_EXTENSION
-
-    if os.path.isfile(keyfile_out):
-        raise FileExistsError("Keyfile " + keyfile_out + " already exists.")
+    if os.path.isfile(name):
+        raise FileExistsError("Keyfile " + name + " already exists.")
 
     if password is None:
         while True:
@@ -37,9 +34,9 @@ def init_keyfile(name, password=None):
 
     rsa_key = init_rsa_key(password)
 
-    keyfile = open(keyfile_out, "w")
+    keyfile = open(name, "w")
     keyfile.write(HEADER_KEYFILE)
-    keyfile.write(rsa_key)
+    keyfile.write(str(rsa_key))
     keyfile.write(TAIL_KEYFILE)
     keyfile.close()
 
