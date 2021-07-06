@@ -3,21 +3,18 @@ from hashlib import pbkdf2_hmac
 from os import urandom
 from string import punctuation
 
-from key import RSAKey, ECCKey, RSA, ECC
+from key import *
 
 HASH_ROUNDS = 2**16
-RSA_N_LEN = 3072
-RSA_E = 0x10001
 
 
-def get_encrypted_header(algo: str) -> str:
-    return f"======== {algo} ========"
+def create_encrypted_header(algo: str) -> str:
+    return b"======== " + algo.encode() + b" ========\n"
 
 
-def get_algo_from_encrypted_file(encrypted_file: str) -> str:
-    with open(encrypted_file, "r") as f:
-        header = f.readline()
-    return header.replace("=", "").replace(" ", "")
+def get_algo_from_cipher(cipher: str) -> str:
+    header = cipher.split("\n")[0]
+    return header.replace(b"=", b"").replace(b" ", b"")
 
 
 def init_rsa_key(password):
@@ -53,10 +50,12 @@ def init_rsa_key(password):
 
 
 def init_ecc_key(password):
+    print(password)
     return ECCKey(0, 0, 0, 0, b"")
 
 
 def init_eg_key(password):
+    print(password)
     return ECCKey(0, 0, 0, 0, b"")
 
 

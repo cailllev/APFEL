@@ -10,8 +10,7 @@ from key import *
 ENCRIPTED_EXTENSION = ".apfel"
 KEYFILE_EXTENSION = ".keys"
 
-HEADER_KEYFILE = "======== BEGIN PUBLIC KEYFILE - APFEL ========\n"
-TAIL_KEYFILE = "========= END PUBLIC KEYFILE - APFEL =========\n"
+HEADER_KEYFILE = b"======== PUBLIC KEYFILE - APFEL ========\n"
 
 
 def init_keyfile(name, password=None):
@@ -32,15 +31,13 @@ def init_keyfile(name, password=None):
             else:
                 print("[!] Passwords did not match, please try again.")
 
-    raw_keys = b"\n".join([init_rsa_key(password).serialize_key(),
-                           init_ecc_key(password).serialize_key(),
-                           init_eg_key(password).serialize_key()])
+    raw_keys = key_separator.join([init_rsa_key(password).serialize_key(),
+                                   init_ecc_key(password).serialize_key(),
+                                   init_eg_key(password).serialize_key()])
 
-    keyfile = open(name, "w")
-    keyfile.write(HEADER_KEYFILE)
-    keyfile.write(raw_keys)
-    keyfile.write(TAIL_KEYFILE)
-    keyfile.close()
+    with open(name, "wb") as keyfile:
+        keyfile.write(HEADER_KEYFILE)
+        keyfile.write(raw_keys)
 
 
 def encrypt(filename: str, keyfile: str, algorithm: str) -> None:
@@ -55,9 +52,12 @@ def encrypt(filename: str, keyfile: str, algorithm: str) -> None:
     with open(filename, "rb") as f:
         plain = f.readlines()
 
-    keys = key_parser(keyfile, algorithm)
+    keys = key_parser(keyfile)
+    if algorithm != All:
+        keys = filter(lambda k: k.get_name() == algorithm, keys)  # overkill, only finds one anyways
+
     for key in keys:
-        plain = key.encrypt(plain)
+        plain = create_encrypted_header(key.get_name()) + key.encrypt(plain)
     cipher = plain
 
     with open(outfile, "w") as c:
@@ -68,12 +68,8 @@ def encrypt(filename: str, keyfile: str, algorithm: str) -> None:
 
 def decrypt(filename: str, keyfile: str, password: str = None,
             show_decripted: bool = False, save_decripted: bool = False):
-
     if not os.path.isfile(filename):
         raise FileNotFoundError(f"[!] File to decrypt {filename} does not exist.")
-
-    algorithm = get_algo_from_encrypted_file(filename)
-    keys = key_parser(keyfile, algorithm)
 
     if not password:
         password = getpass("[*] Please enter your password: ")
@@ -81,10 +77,16 @@ def decrypt(filename: str, keyfile: str, password: str = None,
     with open(filename, "rb") as f:
         cipher = f.readlines()
 
-    for key in keys:
+    keys = key_parser(keyfile)
+    while keys:
+        algorithm = get_algo_from_cipher(cipher)
+        key = get_key_by_name(keys, algorithm)
+        keys.remove(key)
+
         pw_num = get_num_from_password(password, RSA_N_LEN, key.get_salt())
-        key.set_private(pw_num)
-        cipher = key.decrypt(cipher)
+        private = pw_num + key.get_diff()
+        cipher = key.decrypt(cipher, private)
+
     plain = cipher
 
     print(f"[*] Successfully decripted contents of {filename}.")
@@ -116,10 +118,20 @@ def decrypt(filename: str, keyfile: str, password: str = None,
         print("[*] Contents saved in " + outfile + ".")
 
 
+def print_help():
+    s = """
+## USAGE ##
+init:    python3 apfel.py -i <keyfile>
+encrypt: python3 apfel.py -k <keyfile> -e <file to encrypt> [-a RSA | ECC | EG]
+decrypt: python3 apfel.py -k <keyfile> -d <file to decrypt> [-v] [-s]
+    """
+    print(s)
+    exit()
+
+
 def parse_args(argv):
     arg_parser = argparse.ArgumentParser(
-        description='parsa - PAssword RSA.\n'
-                    'Encript and Decript contents of files via RSA algorithm.\n'
+        description='Encrypt and Decrypt contents of files via asymmetric algorithm.\n'
                     'The private key is a password of your choosing.')
 
     arg_parser.add_argument("-i", "--init",
@@ -135,8 +147,8 @@ def parse_args(argv):
                             type=str)
 
     arg_parser.add_argument("-a", "--algorithm",
-                            help="Algorithm name: 'RSA', 'ECC', 'EG' (El-Gamal) or 'all'.",
-                            type=str, default='all')
+                            help="Algorithm name: 'RSA', 'ECC', 'EG' (El-Gamal) or 'All'.",
+                            type=str, default=All)
 
     arg_parser.add_argument("-d", "--decriypt",
                             help="Decryption mode, name of file to decrypt.",
@@ -152,15 +164,13 @@ def parse_args(argv):
 
 
 if __name__ == "__main__":
-    args, parser = parse_args(sys.argv[1:])
+    args, _ = parse_args(sys.argv[1:])
 
-    if args.init:
-        keyfile_name = args.init
+    if keyfile_name := args.init:
         print("Init keyfile: " + keyfile_name)
         init_keyfile(keyfile_name)
 
-    elif args.keyfile:
-        keyfile_name = args.keyfile
+    elif keyfile_name := args.keyfile:
 
         if file := args.encrypt:
             if algo := args.algorithm:
@@ -168,17 +178,13 @@ if __name__ == "__main__":
                 encrypt(file, keyfile_name, algo)
 
         elif file := args.decrypt:
-            print("[*] Decrypt: " + args.decript)
+            print("[*] Decrypt: " + file)
             decrypt(file, keyfile_name, None, args.verbose, args.save)
 
         else:
-            print("**************************************************************************")
-            print("If a keyfile is supplied, the encription or decription flag has to be set!")
-            print("**************************************************************************\n")
-            parser.print_help()
+            print(f"[!] If a keyfile is supplied, the encription or decription flag has to be set!")
+            print_help()
 
     else:
-        print("************************************************************")
-        print("Either the init flag or the keyfile flag has to be supplied!")
-        print("************************************************************\n")
-        parser.print_help()
+        print(f"[!] Either the init flag or the keyfile flag has to be supplied!")
+        print_help()

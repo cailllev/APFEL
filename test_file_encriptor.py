@@ -23,20 +23,6 @@ class FileEncriptorTest(unittest.TestCase):
     def test_store_decrypted(self):
         self.assertTrue(False)
 
-    def test_init_rsa_key(self):
-        rsa_key = init_rsa_key(PASSWORD)
-
-        s = rsa_key.serialize_key()
-        name = s["_name"]
-        n = s["_n"]
-        e = s["_e"]
-        diff = s["_diff"]
-
-        self.assertEqual(name, RSA)
-        self.assertTrue(int(n).bit_length() >= RSA_N_LEN - 1)
-        self.assertEqual(e, RSA_E)
-        self.assertTrue(diff >= 0 and diff.bit_length() <= RSA_N_LEN)
-
     def test_serialize_and_deserialize_rsa_key(self):
         rsa_key = init_rsa_key(PASSWORD)
         s = rsa_key.serialize_key()
@@ -59,8 +45,8 @@ class FileEncriptorTest(unittest.TestCase):
         self.assertEqual(eg_key, d)
 
     def test_store_and_deserialize_keys(self):
-        init_keyfile(KEYFILE)
-        rsa_key, ecc_key, eg_key = key_parser(KEYFILE, [RSA, ECC, EG])
+        init_keyfile(KEYFILE, PASSWORD)
+        rsa_key, ecc_key, eg_key = key_parser(KEYFILE)
 
         # TODO find useful tests
         self.assertIsNotNone(rsa_key)
