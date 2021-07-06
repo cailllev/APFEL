@@ -1,6 +1,5 @@
 from Crypto.Util import number
 from hashlib import pbkdf2_hmac
-from math import ceil
 from os import urandom
 from string import punctuation
 
@@ -11,8 +10,14 @@ RSA_N_LEN = 3072
 RSA_E = 0x10001
 
 
-def get_prime(bit_length):
-    return number.getPrime(bit_length)
+def get_encrypted_header(algo: str) -> str:
+    return f"======== {algo} ========"
+
+
+def get_algo_from_encrypted_file(encrypted_file: str) -> str:
+    with open(encrypted_file, "r") as f:
+        header = f.readline()
+    return header.replace("=", "").replace(" ", "")
 
 
 def init_rsa_key(password):
@@ -24,8 +29,8 @@ def init_rsa_key(password):
 
     # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf#page=62
     while p - q <= pow(2, int(RSA_N_LEN / 2 - 100)) and (p*q).bit_length() < RSA_N_LEN:
-        p = get_prime(p_len)
-        q = get_prime(q_len)
+        p = number.getPrime(p_len)
+        q = number.getPrime(q_len)
 
     n = p * q
     phi = (p - 1) * (q - 1)
@@ -44,7 +49,15 @@ def init_rsa_key(password):
             pass
 
     del p, q, phi, d, d_in
-    return RSAKey(RSA, n, e, diff)
+    return RSAKey(n, e, diff, salt)
+
+
+def init_ecc_key(password):
+    return ECCKey(0, 0, 0, 0, b"")
+
+
+def init_eg_key(password):
+    return ECCKey(0, 0, 0, 0, b"")
 
 
 def check_password_strength(password, shorten_rockyou=False):
@@ -97,7 +110,7 @@ def create_salt() -> bytes:
     return urandom(16)
 
 
-def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int) -> int:
+def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int = HASH_ROUNDS) -> int:
 
     hashed = pbkdf2_hmac("sha512", password.encode(), salt, rounds)
     d_in_next = int.from_bytes(hashed, "big")

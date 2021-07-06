@@ -5,16 +5,16 @@ import sys
 
 from getpass import getpass
 from utils import *
+from key import *
 
 ENCRIPTED_EXTENSION = ".apfel"
-KEYFILE_EXTENSION = ".akey"
+KEYFILE_EXTENSION = ".keys"
 
 HEADER_KEYFILE = "======== BEGIN PUBLIC KEYFILE - APFEL ========\n"
 TAIL_KEYFILE = "========= END PUBLIC KEYFILE - APFEL =========\n"
 
 
 def init_keyfile(name, password=None):
-
     if os.path.isfile(name):
         raise FileExistsError("Keyfile " + name + " already exists.")
 
@@ -32,85 +32,77 @@ def init_keyfile(name, password=None):
             else:
                 print("[!] Passwords did not match, please try again.")
 
-    rsa_key = init_rsa_key(password)
+    raw_keys = b"\n".join([init_rsa_key(password).serialize_key(),
+                           init_ecc_key(password).serialize_key(),
+                           init_eg_key(password).serialize_key()])
 
     keyfile = open(name, "w")
     keyfile.write(HEADER_KEYFILE)
-    keyfile.write(str(rsa_key))
+    keyfile.write(raw_keys)
     keyfile.write(TAIL_KEYFILE)
     keyfile.close()
 
 
-def encrypt(filename, keyfile, algorithm):
+def encrypt(filename: str, keyfile: str, algorithm: str) -> None:
     outfile = filename + ENCRIPTED_EXTENSION
+
+    if not os.path.isfile(filename):
+        raise FileNotFoundError(f"[!] File to encrypt {filename} does not exist.")
 
     if os.path.isfile(outfile):
         raise FileExistsError(f"[!] Encripted outfile {outfile} already exists.")
 
-    with open(keyfile, "r") as k:
-        keys = k.readlines()[1:-1]
+    with open(filename, "rb") as f:
+        plain = f.readlines()
 
+    keys = key_parser(keyfile, algorithm)
     for key in keys:
-        if algorithm in key:
-            break
-    else:
-        raise FileExistsError(f"[!] Chosen algorithm {algorithm} does not have any keys in file {keyfile}.")
+        plain = key.encrypt(plain)
+    cipher = plain
 
-    key = algo_parser
     with open(outfile, "w") as c:
         c.write(cipher)
 
-    print("[*] Successfully encripted contents of " + filename + " and saved them under " + outfile)
+    print(f"[*] Successfully encripted contents of {filename} and saved them under {outfile}.")
 
 
-def decrypt(filename, keyfile, password=None, show_decripted=False, save_decripted=False):
+def decrypt(filename: str, keyfile: str, password: str = None,
+            show_decripted: bool = False, save_decripted: bool = False):
 
-    k = open(keyfile, "r")
-    n, _, diff = k.readlines()[1:-1]
-    k.close()
+    if not os.path.isfile(filename):
+        raise FileNotFoundError(f"[!] File to decrypt {filename} does not exist.")
 
-    n, n_len = n.split(":")
-    n = int(n)
-    n_len = int(n_len.strip())
+    algorithm = get_algo_from_encrypted_file(filename)
+    keys = key_parser(keyfile, algorithm)
 
     if not password:
-        password = getpass("[*] Please enter your password you used for the encription: ")
+        password = getpass("[*] Please enter your password: ")
 
-    salt, quotient, remainder = diff.split(":")
-    d, _ = get_num_from_password(password, n_len, salt)
-    d += int(quotient) * d + int(remainder)
+    with open(filename, "rb") as f:
+        cipher = f.readlines()
 
-    f = open(filename, "r")
-    data = f.readlines()
-    f.close()
+    for key in keys:
+        pw_num = get_num_from_password(password, RSA_N_LEN, key.get_salt())
+        key.set_private(pw_num)
+        cipher = key.decrypt(cipher)
+    plain = cipher
 
-    plain = []
-    for c in data:
-        c = int(c.strip())
-
-        # c^d mod n
-        m = pow(c, d, n)
-        plain.append(hex(m)[2:])
-    
-    plain = hex_nums_to_bytes(plain, n_len)
-
-    print("[*] Successfully decripted contents of " + filename + ".")
+    print(f"[*] Successfully decripted contents of {filename}.")
     if show_decripted:
         can_be_shown = True
         plain_decoded = ""
         try:
             plain_decoded = plain.decode()
-        except:
+        except UnicodeDecodeError:
             can_be_shown = False
 
-        if can_be_shown:     
+        if can_be_shown:
             print("[*] Result of decription see below.")
             print("*******************************")
             print(plain_decoded)
             print("*******************************")
         else:
             print("[*] Result of decription cannot be shown (is in bytes format).")
-
 
     if save_decripted:
         outfile = filename[:-len(ENCRIPTED_EXTENSION)]
@@ -125,54 +117,41 @@ def decrypt(filename, keyfile, password=None, show_decripted=False, save_decript
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(
+    arg_parser = argparse.ArgumentParser(
         description='parsa - PAssword RSA.\n'
                     'Encript and Decript contents of files via RSA algorithm.\n'
                     'The private key is a password of your choosing.')
 
-    parser.add_argument("-i", "--init",
-                        help="Init a keyfile, name of keyfile.",
-                        type=str)
+    arg_parser.add_argument("-i", "--init",
+                            help="Init a keyfile, name of keyfile.",
+                            type=str)
 
-    parser.add_argument("-k", "--keyfile",
-                        help="Encription and Decription mode, name of keyfile",
-                        type=str)
+    arg_parser.add_argument("-k", "--keyfile",
+                            help="Encription and Decription mode, name of keyfile",
+                            type=str)
 
-    parser.add_argument("-e", "--encript",
-                        help="Encription mode, name of file to encript.",
-                        type=str)
+    arg_parser.add_argument("-e", "--encrypt",
+                            help="Encryption mode, name of file to encrypt.",
+                            type=str)
 
-    parser.add_argument("-d", "--decript",
-                        help="Decription mode, name of file to decript.",
-                        type=str)
+    arg_parser.add_argument("-a", "--algorithm",
+                            help="Algorithm name: 'RSA', 'ECC', 'EG' (El-Gamal) or 'all'.",
+                            type=str, default='all')
 
-    parser.add_argument("-v", "--verbose",
-                        help="Decription mode, print decripted file.")
+    arg_parser.add_argument("-d", "--decriypt",
+                            help="Decryption mode, name of file to decrypt.",
+                            type=str)
 
-    parser.add_argument("-s", "--save",
-                        help="Decription mode, save decripted file.")
+    arg_parser.add_argument("-v", "--verbose",
+                            help="Decription mode, print decripted file.")
 
-    return parser.parse_args(argv), parser
+    arg_parser.add_argument("-s", "--save",
+                            help="Decription mode, save decripted file.")
+
+    return arg_parser.parse_args(argv), arg_parser
 
 
 if __name__ == "__main__":
-    """
-    normal rsa:
-    1. choose e
-    2. d is e's mod_inv in phi
-    public = (n,e)
-    private = (n,d)
-    
-    
-    "password" rsa:
-    1. enter password -> d
-    2. d_prime = next_prime(d + random)
-    3. diff = d_prime - d
-    4. e is d's mod_inv in phi, if no inv -> go to 2.
-    public = (n,e,diff)
-    private = (n,password)
-    """
-
     args, parser = parse_args(sys.argv[1:])
 
     if args.init:
@@ -183,17 +162,14 @@ if __name__ == "__main__":
     elif args.keyfile:
         keyfile_name = args.keyfile
 
-        if args.encript:
-            file = args.encript
-            print("[*] Encript: " + file)
+        if file := args.encrypt:
+            if algo := args.algorithm:
+                print("[*] Encrypt: " + file)
+                encrypt(file, keyfile_name, algo)
 
-            encript(file, keyfile_name)
-
-        elif args.decript:
-            file = args.decript
-            print("[*] Decript: " + args.decript)
-
-            decript(file, keyfile_name, None, args.verbose, args.save)
+        elif file := args.decrypt:
+            print("[*] Decrypt: " + args.decript)
+            decrypt(file, keyfile_name, None, args.verbose, args.save)
 
         else:
             print("**************************************************************************")
