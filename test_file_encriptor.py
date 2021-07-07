@@ -10,7 +10,7 @@ PASSWORD = "AABBCCdd1!"
 
 TEST_FILE_TO_ENCRYPT = "test.txt"
 TEST_FILE_ENCRYPTED = TEST_FILE_TO_ENCRYPT + ENCRIPTED_EXTENSION
-FILE_CONTENTS = 'test\ntest\ntest'
+FILE_CONTENTS = b"test\ntest\ntest"
 
 
 class FileEncriptorTest(unittest.TestCase):
@@ -48,16 +48,26 @@ class FileEncriptorTest(unittest.TestCase):
         init_keyfile(KEYFILE, PASSWORD)
         rsa_key, ecc_key, eg_key = key_parser(KEYFILE)
 
-        # TODO find useful tests
         self.assertIsNotNone(rsa_key)
         self.assertIsNotNone(ecc_key)
         self.assertIsNotNone(eg_key)
+
+        self.assertEqual(set(rsa_key.__dict__), {"_name", "_n", "_e", "_diff", "_salt"})
+        self.assertEqual(set(ecc_key.__dict__), {"_g", "_p", "_diff", "_n", "_salt", "_name"})
+        self.assertEqual(set(eg_key.__dict__), {"_g", "_p", "_diff", "_n", "_salt", "_name"})
 
     def test_pad(self):
         self.assertTrue(False)
 
     def test_unpad(self):
         self.assertTrue(False)
+
+    """
+    def test_d_from_password(self):
+        rsa_key, d1 = init_rsa_key(PASSWORD)
+        d2 = get_num_from_password(PASSWORD, RSA_N_LEN, rsa_key.get_salt()) + rsa_key.get_diff()
+        self.assertEqual(d1, d2)
+    """
 
     def test_create_salt(self):
         salt = create_salt()
@@ -81,7 +91,8 @@ class FileEncriptorTest(unittest.TestCase):
     def test_rsa_encryption(self):
         rsa_key = init_rsa_key(PASSWORD)
         c = rsa_key.encrypt(FILE_CONTENTS)
-        m = rsa_key.decrypt(c)
+        d = get_num_from_password(PASSWORD, RSA_N_LEN, rsa_key.get_salt()) + rsa_key.get_diff()
+        m = rsa_key.decrypt(c, d)
         self.assertEqual(FILE_CONTENTS, m)
 
     def test_ecc_encryption(self):
@@ -91,20 +102,19 @@ class FileEncriptorTest(unittest.TestCase):
         self.assertTrue(False)
 
     def test_multiple_key_encryption(self):
-        self.assertTrue(False)
+        with open(TEST_FILE_TO_ENCRYPT, "wb") as f:
+            f.write(FILE_CONTENTS)
 
-    def test_encryption_non_ascii(self):
-        rsa_key = init_rsa_key(PASSWORD)
+        init_keyfile(KEYFILE, PASSWORD)
+        _, _, eg_key = key_parser(KEYFILE)
 
-        plain = []
-        for i in range(1, 256):
-            plain.append(i)
-        plain = bytearray(plain)
+        encrypt(TEST_FILE_TO_ENCRYPT, KEYFILE, All, True)
+        algorithm = get_algo_from_cipher(open(TEST_FILE_ENCRYPTED).readlines())
+        self.assertEqual(algorithm, EG)
 
-        c = rsa_key.encrypt(plain)
-        m = rsa_key.decrypt(c)
-
-        self.assertEqual(plain, m)
+        decrypt(TEST_FILE_ENCRYPTED, KEYFILE, PASSWORD, save_decripted=TEST_FILE_TO_ENCRYPT)
+        decrypted = open(TEST_FILE_TO_ENCRYPT).readlines()
+        self.assertEqual(FILE_CONTENTS, decrypted)
 
     def test_encryption_multiple_blocks(self):
         rsa_key = init_rsa_key(PASSWORD)

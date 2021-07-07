@@ -12,9 +12,9 @@ def create_encrypted_header(algo: str) -> str:
     return b"======== " + algo.encode() + b" ========\n"
 
 
-def get_algo_from_cipher(cipher: str) -> str:
-    header = cipher.split("\n")[0]
-    return header.replace(b"=", b"").replace(b" ", b"")
+def get_algo_from_cipher(cipher: bytes) -> str:
+    header = cipher.split(b"\n")[0]
+    return (header.replace(b"=", b"").replace(b" ", b"")).decode()
 
 
 def init_rsa_key(password):
@@ -41,7 +41,6 @@ def init_rsa_key(password):
             d = pow(e, -1, phi)
             diff = d - d_in
             break
-
         except ValueError:  # i.e. no inverse found
             pass
 

@@ -13,9 +13,9 @@ KEYFILE_EXTENSION = ".keys"
 HEADER_KEYFILE = b"======== PUBLIC KEYFILE - APFEL ========\n"
 
 
-def init_keyfile(name, password=None):
+def init_keyfile(name, password=None) -> None:
     if os.path.isfile(name):
-        raise FileExistsError("Keyfile " + name + " already exists.")
+        raise FileExistsError("Keyfile " + name + " already exists!")
 
     if password is None:
         while True:
@@ -31,45 +31,51 @@ def init_keyfile(name, password=None):
             else:
                 print("[!] Passwords did not match, please try again.")
 
-    raw_keys = key_separator.join([init_rsa_key(password).serialize_key(),
-                                   init_ecc_key(password).serialize_key(),
-                                   init_eg_key(password).serialize_key()])
+    raw_keys = SEPARATOR.join([init_rsa_key(password).serialize_key(),
+                               init_ecc_key(password).serialize_key(),
+                               init_eg_key(password).serialize_key()])
 
     with open(name, "wb") as keyfile:
         keyfile.write(HEADER_KEYFILE)
         keyfile.write(raw_keys)
 
 
-def encrypt(filename: str, keyfile: str, algorithm: str) -> None:
+def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool = False) -> None:
     outfile = filename + ENCRIPTED_EXTENSION
 
     if not os.path.isfile(filename):
-        raise FileNotFoundError(f"[!] File to encrypt {filename} does not exist.")
+        raise FileNotFoundError(f"[!] File to encrypt {filename} does not exist!")
 
     if os.path.isfile(outfile):
-        raise FileExistsError(f"[!] Encripted outfile {outfile} already exists.")
+        raise FileExistsError(f"[!] Encripted outfile {outfile} already exists!")
 
     with open(filename, "rb") as f:
         plain = f.readlines()
 
     keys = key_parser(keyfile)
     if algorithm != All:
-        keys = filter(lambda k: k.get_name() == algorithm, keys)  # overkill, only finds one anyways
+        keys = filter(lambda k: k.get_name() == algorithm, keys)  # TODO overkill, only finds one anyways, better way?
+
+        if not keys:
+            raise Exception(f"[!] Algorithm {algorithm} not found!")
 
     for key in keys:
         plain = create_encrypted_header(key.get_name()) + key.encrypt(plain)
     cipher = plain
 
-    with open(outfile, "w") as c:
-        c.write(cipher)
-
+    with open(outfile, "w") as f:
+        f.write(cipher)
     print(f"[*] Successfully encripted contents of {filename} and saved them under {outfile}.")
+
+    if delete_original:
+        os.remove(filename)
+        print(f"[*] Sucessfully removed original file {filename}.")
 
 
 def decrypt(filename: str, keyfile: str, password: str = None,
-            show_decripted: bool = False, save_decripted: bool = False):
+            show_decripted: bool = False, save_decripted: str = "") -> None:
     if not os.path.isfile(filename):
-        raise FileNotFoundError(f"[!] File to decrypt {filename} does not exist.")
+        raise FileNotFoundError(f"[!] File to decrypt {filename} does not exist!")
 
     if not password:
         password = getpass("[*] Please enter your password: ")
@@ -78,10 +84,11 @@ def decrypt(filename: str, keyfile: str, password: str = None,
         cipher = f.readlines()
 
     keys = key_parser(keyfile)
-    while keys:
+    while True:
         algorithm = get_algo_from_cipher(cipher)
         key = get_key_by_name(keys, algorithm)
-        keys.remove(key)
+        if key is None:
+            break
 
         pw_num = get_num_from_password(password, RSA_N_LEN, key.get_salt())
         private = pw_num + key.get_diff()
@@ -106,30 +113,38 @@ def decrypt(filename: str, keyfile: str, password: str = None,
         else:
             print("[*] Result of decription cannot be shown (is in bytes format).")
 
-    if save_decripted:
-        outfile = filename[:-len(ENCRIPTED_EXTENSION)]
-
+    if outfile := save_decripted:
         if os.path.isfile(outfile):
-            raise FileExistsError("[!] Decripted outfile " + outfile + " already exists.")
+            raise FileExistsError(f"[!] Decripted outfile {outfile} already exists!")
 
-        m = open(outfile, "wb")
-        m.write(plain)
-        m.close()
-        print("[*] Contents saved in " + outfile + ".")
+        with open(outfile, "wb") as f:
+            f.write(plain)
+        print(f"[*] Contents saved in {outfile}.")
 
 
-def print_help():
+def print_help() -> None:
     s = """
 ## USAGE ##
 init:    python3 apfel.py -i <keyfile>
-encrypt: python3 apfel.py -k <keyfile> -e <file to encrypt> [-a RSA | ECC | EG]
-decrypt: python3 apfel.py -k <keyfile> -d <file to decrypt> [-v] [-s]
+            i: the name of the new keyfile
+
+encrypt: python3 apfel.py -k <keyfile> -e <file to encrypt> [-a RSA | ECC | EG] [-r]
+            k: the keyfile with the keys
+            e: the file to encrypt
+            a: algorithm to encrypt, defaults to all
+            r: remove original after encryption
+            
+decrypt: python3 apfel.py -k <keyfile> -d <file to decrypt> [-v] [-s <new file name>]
+            k: the keyfile with the keys
+            d: the file to decrypt
+            v: verbose, print decrypted file
+            s: save decrypted file
     """
     print(s)
     exit()
 
 
-def parse_args(argv):
+def parse_args(argv) -> object:
     arg_parser = argparse.ArgumentParser(
         description='Encrypt and Decrypt contents of files via asymmetric algorithm.\n'
                     'The private key is a password of your choosing.')
@@ -150,6 +165,10 @@ def parse_args(argv):
                             help="Algorithm name: 'RSA', 'ECC', 'EG' (El-Gamal) or 'All'.",
                             type=str, default=All)
 
+    arg_parser.add_argument("-r", "--remove",
+                            help="Remove original after encryption.",
+                            type=str)
+
     arg_parser.add_argument("-d", "--decriypt",
                             help="Decryption mode, name of file to decrypt.",
                             type=str)
@@ -160,22 +179,21 @@ def parse_args(argv):
     arg_parser.add_argument("-s", "--save",
                             help="Decription mode, save decripted file.")
 
-    return arg_parser.parse_args(argv), arg_parser
+    return arg_parser.parse_args(argv)
 
 
 if __name__ == "__main__":
-    args, _ = parse_args(sys.argv[1:])
+    args = parse_args(sys.argv[1:])
 
     if keyfile_name := args.init:
-        print("Init keyfile: " + keyfile_name)
-        init_keyfile(keyfile_name)
+        print("Init keyfile: " + keyfile_name + KEYFILE_EXTENSION)
+        init_keyfile(keyfile_name + KEYFILE_EXTENSION)
 
     elif keyfile_name := args.keyfile:
 
         if file := args.encrypt:
-            if algo := args.algorithm:
-                print("[*] Encrypt: " + file)
-                encrypt(file, keyfile_name, algo)
+            print("[*] Encrypt: " + file)
+            encrypt(file, keyfile_name, args.algorithm, args.remove)
 
         elif file := args.decrypt:
             print("[*] Decrypt: " + file)

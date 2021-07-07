@@ -18,20 +18,23 @@ ECC = "ECC"
 EG = "EG"
 All = "All"
 
-key_separator = b"Theoretically all separators could be created by chance with big primes, but with this length it's virtually impossible!"
+# TODO find better method to separate serialized objects and encrypted stuff
+SEPARATOR = b"A" * (RSA_N_LEN // 8)
 
 
 # https://en.wikipedia.org/wiki/Optimal_asymmetric_encryption_padding
 # TODO implement this correctly
 def pad(m: bytes, blocksize: int) -> bytes:
     ms = []
-    for i in range(0, blocksize, len(m)):
-        ms.append(m[i*blocksize:(i+1)*blocksize])
+    for i in range(0, len(m), blocksize):
+        block = m[i*blocksize:(i+1)*blocksize]
+        ms.append(block)
     return ms
 
 
 # TODO implement this correctly
 def unpad(m: bytes) -> bytes:
+    print(m)
     pass
 
 
@@ -102,15 +105,17 @@ class RSAKey(Key):
         for m in ms:  # TODO add anti timing attack measures, add padding
             m = bytes_to_long(m)
             c = pow(m, self._e, self._n)
-            cipher += long_to_bytes(c) + b"\n"
+            cipher += long_to_bytes(c) + SEPARATOR
 
         return cipher
 
     def decrypt(self, c: bytes, d: int) -> bytes:
         plain = b""
-        cs = c.split(b"\n")
+        cs = c.split(SEPARATOR)
 
         for c in cs:  # TODO add anti timing attack measures, add padding
+            if len(c) == 0:  # TODO maybe redundant with correct padding
+                continue
             c = bytes_to_long(c)
             m = pow(c, d, self._n)
             plain += long_to_bytes(m)
@@ -165,7 +170,7 @@ def key_parser(keyfile: str) -> List[Key]:
 
     # eliminate randomly created newlines and then split with unique separator
     raw_keys = b"".join(raw_keys)
-    raw_keys = raw_keys.split(key_separator)
+    raw_keys = raw_keys.split(SEPARATOR)
 
     algos = [RSAKey, ECCKey, EGKey]
     parsed_keys = []
@@ -185,3 +190,4 @@ def get_key_by_name(keys: Key, name: str) -> Key:
     for key in keys:
         if key.get_name() == name:
             return key
+    return None
