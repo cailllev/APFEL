@@ -3,7 +3,6 @@
 Uses the RSA / ECC / El Gamal algorithm to encrypt files. Only a password is needed, i.e. no private key (files) meaning that *all* files can be public. The password is transformed to a (prime) number to be used as the secret.
 
 ## Usage
-### Help
 ```
 init:    python3 apfel.py -i <keyfile>
             i: the name of the new keyfile
