@@ -31,21 +31,20 @@ def init_keyfile(name, password=None) -> None:
             else:
                 print("[!] Passwords did not match, please try again.")
 
-    raw_keys = SEPARATOR.join([init_rsa_key(password).serialize_key(),
-                               init_ecc_key(password).serialize_key(),
-                               init_eg_key(password).serialize_key()])
+    raw_keys = "\n".join([init_ecc_key(password).serialize_key(),
+                          init_eg_key(password).serialize_key(),
+                          init_rsa_key(password).serialize_key()])
 
-    with open(name, "wb") as keyfile:
+    with open(name, "w") as keyfile:
         keyfile.write(HEADER_KEYFILE)
         keyfile.write(raw_keys)
 
 
 def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool = False) -> None:
-    outfile = filename + ENCRIPTED_EXTENSION
-
     if not os.path.isfile(filename):
         raise FileNotFoundError(f"[!] File to encrypt {filename} does not exist!")
 
+    outfile = filename + ENCRIPTED_EXTENSION
     if os.path.isfile(outfile):
         raise FileExistsError(f"[!] Encripted outfile {outfile} already exists!")
 
@@ -54,10 +53,10 @@ def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool =
 
     keys = key_parser(keyfile)
     if algorithm != All:
-        keys = filter(lambda k: k.get_name() == algorithm, keys)  # TODO overkill, only finds one anyways, better way?
+        keys = filter(lambda k: k.get_name() == algorithm, keys)
 
-        if not keys:
-            raise Exception(f"[!] Algorithm {algorithm} not found!")
+    if len(keys) == 0:
+        raise Exception(f"[!] Algorithm {algorithm} not found!")
 
     for key in keys:
         plain = create_encrypted_header(key.get_name()) + key.encrypt(plain)

@@ -1,20 +1,20 @@
 from Crypto.Util import number
 from hashlib import pbkdf2_hmac
-from os import urandom
 from string import punctuation
+from secrets import randbits
 
-from key import *
+from key import RSA_N_LEN, RSA_E, RSAKey, ECCKey, EGKey
 
 HASH_ROUNDS = 2**16
 
 
 def create_encrypted_header(algo: str) -> str:
-    return b"======== " + algo.encode() + b" ========\n"
+    return "======== " + algo.encode() + " ========\n"
 
 
 def get_algo_from_cipher(cipher: bytes) -> str:
-    header = cipher.split(b"\n")[0]
-    return (header.replace(b"=", b"").replace(b" ", b"")).decode()
+    header = cipher.split("\n")[0]
+    return (header.replace("=", "").replace(" ", "")).decode()
 
 
 def init_rsa_key(password):
@@ -49,13 +49,13 @@ def init_rsa_key(password):
 
 
 def init_ecc_key(password):
-    print(password)
+    print(f"ECC init for {password}.")
     return ECCKey(0, 0, 0, 0, b"")
 
 
 def init_eg_key(password):
-    print(password)
-    return ECCKey(0, 0, 0, 0, b"")
+    print(f"EG init for {password}.")
+    return EGKey(0, 0, 0, 0, b"")
 
 
 def check_password_strength(password, shorten_rockyou=False):
@@ -105,7 +105,7 @@ def shorten_rockyou_txt():
 
 
 def create_salt() -> bytes:
-    return urandom(16)
+    return randbits(16*8)
 
 
 def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int = HASH_ROUNDS) -> int:
@@ -119,7 +119,7 @@ def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int = 
     if d_in_next.bit_length() >= n_len:
         return d_in_next >> d_in_next.bit_length() - n_len + 1
 
-    # else append hashes until big enough -> password123 -> d4fe -> d4fe36ad
+    # else append hashes until big enough -> password123 -> d4fe -> d4fe36ad -> ...
     while d_in_next.bit_length() <= n_len:
         hashed += pbkdf2_hmac("sha512", hashed, salt, rounds)
         d_in = d_in_next >> 1

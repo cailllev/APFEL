@@ -1,16 +1,20 @@
 import pickle
 
 from abc import ABC, abstractmethod
+from base64 import b64encode, b64decode
 from Crypto.Util.number import long_to_bytes, bytes_to_long
+from hashlib import pbkdf2_hmac
+from secrets import token_bytes
 from typing import List
 
-# OEAS padding
-k0 = 1
-k1 = 2
-
-# cipher spec
+# keys spec
 RSA_N_LEN = 3072
 RSA_E = 0x10001
+
+# OAEP
+k0 = 16  # byte length for OEAP
+padding = b"\x00"
+padding_int = int.from_bytes(padding, "big")
 
 # names
 RSA = "RSA"
@@ -18,24 +22,72 @@ ECC = "ECC"
 EG = "EG"
 All = "All"
 
-# TODO find better method to separate serialized objects and encrypted stuff
-SEPARATOR = b"A" * (RSA_N_LEN // 8)
+
+def xor(a: bytes, b: bytes) -> bytes:
+    return long_to_bytes(bytes_to_long(a) ^ bytes_to_long(b))
 
 
-# https://en.wikipedia.org/wiki/Optimal_asymmetric_encryption_padding
-# TODO implement this correctly
-def pad(m: bytes, blocksize: int) -> bytes:
-    ms = []
-    for i in range(0, len(m), blocksize):
-        block = m[i*blocksize:(i+1)*blocksize]
-        ms.append(block)
-    return ms
+def OAEP_hash(b: bytes, length: int) -> bytes:
+    hashed = pbkdf2_hmac("sha512", b, b"$al7y_s4lt", 1)
+    return hashed[:length]
 
 
-# TODO implement this correctly
-def unpad(m: bytes) -> bytes:
-    print(m)
-    pass
+def OAEP_pad(m: bytes, n: int) -> bytes:
+    if n <= k0:
+        raise Exception(f"[!] Blocksize ({n} bytes) must be bigger than k0 ({k0} bytes).")
+
+    # split messages so that len(m) <= blocksize - k0
+    ms = [m[i:i + n - k0] for i in range(0, len(m), n - k0)]
+    padded = []
+
+    for m in ms:
+        # messages are padded with k1 zeros to be n − k0 bits in length
+        # -> len(m) + k1 = n - k0
+        k1 = n - k0 - len(m)
+        m += k1 * padding
+
+        # r is a randomly generated k0-bit string
+        r = token_bytes(k0)
+
+        # G expands the k0 bits of r to n − k0 bits
+        g = OAEP_hash(r, n - k0)
+
+        # X = m00...0 ⊕ G(r)
+        x = xor(m, g)
+
+        # H reduces the n − k0 bits of X to k0 bits
+        h = OAEP_hash(x, k0)
+
+        # Y = r ⊕ H(X)
+        y = xor(r, h)
+
+        # The output is X || Y where X is shown in the diagram as the leftmost block and Y as the rightmost block
+        padded.append(x + y)
+
+    return padded
+
+
+def OAEP_unpad(ms: bytes, n: int) -> bytes:
+    unpadded = []
+
+    for m in ms:
+        x = m[:-k0]
+        y = m[-k0:]
+
+        # recover the random string as r = Y ⊕ H(X)
+        h = OAEP_hash(x, k0)
+        r = xor(y, h)
+
+        # recover the message as m00...0 = X ⊕ G(r)
+        g = OAEP_hash(r, n - k0)
+        m = xor(x, g)
+
+        while m[-1] == padding_int:
+            m = m[:-1]
+
+        unpadded.append(m)
+
+    return b"".join(unpadded)
 
 
 class Key(ABC):
@@ -44,8 +96,8 @@ class Key(ABC):
         self._diff = None
         self._salt = None
 
-    def serialize_key(self) -> bytes:
-        return pickle.dumps(self)
+    def serialize_key(self) -> str:
+        return b64encode(pickle.dumps(self)).decode()
 
     def __str__(self) -> str:
         return str(self.__dict__.keys())
@@ -75,8 +127,8 @@ class Key(ABC):
         return self._salt
 
     @staticmethod
-    def deserialize_key(raw_key: bytes) -> object:
-        return pickle.loads(raw_key)
+    def deserialize_key(raw_key: str) -> object:
+        return pickle.loads(b64decode(raw_key))
 
     @abstractmethod
     def encrypt(self, m: bytes) -> bytes:
@@ -88,42 +140,6 @@ class Key(ABC):
 
 
 # TODO encryption & decryption for algos
-class RSAKey(Key):
-    def __init__(self, n: int, e: int, diff: int, salt: bytes):
-        super().__init__()
-
-        self._name = RSA
-        self._n = n
-        self._e = e
-        self._diff = diff
-        self._salt = salt
-
-    def encrypt(self, m: bytes) -> bytes:
-        cipher = b""
-        ms = pad(m, RSA_N_LEN // 8)  # blocksize in bytes
-
-        for m in ms:  # TODO add anti timing attack measures, add padding
-            m = bytes_to_long(m)
-            c = pow(m, self._e, self._n)
-            cipher += long_to_bytes(c) + SEPARATOR
-
-        return cipher
-
-    def decrypt(self, c: bytes, d: int) -> bytes:
-        plain = b""
-        cs = c.split(SEPARATOR)
-
-        for c in cs:  # TODO add anti timing attack measures, add padding
-            if len(c) == 0:  # TODO maybe redundant with correct padding
-                continue
-            c = bytes_to_long(c)
-            m = pow(c, d, self._n)
-            plain += long_to_bytes(m)
-
-        del d
-        return plain
-
-
 # TODO correct params
 class ECCKey(Key):
     def __init__(self, n: int, p: int, g: int, diff: int, salt: bytes):
@@ -164,13 +180,43 @@ class EGKey(Key):
         pass
 
 
-def key_parser(keyfile: str) -> List[Key]:
-    with open(keyfile, "rb") as k:
-        raw_keys = k.readlines()[1:]  # remove header
+class RSAKey(Key):
+    def __init__(self, n: int, e: int, diff: int, salt: bytes):
+        super().__init__()
 
-    # eliminate randomly created newlines and then split with unique separator
-    raw_keys = b"".join(raw_keys)
-    raw_keys = raw_keys.split(SEPARATOR)
+        self._name = RSA
+        self._n = n
+        self._e = e
+        self._diff = diff
+        self._salt = salt
+
+    def encrypt(self, plain: bytes) -> str:
+        cipher = []
+        ms = OAEP_pad(plain, RSA_N_LEN // 8)  # blocksize in bytes
+
+        for m in ms:  # TODO add anti timing attack measures
+            c = pow(bytes_to_long(m), self._e, self._n)
+            c = b64encode(c).decode()
+            cipher.append(c)
+
+        return "\n".join(cipher)
+
+    def decrypt(self, cipher: List[str], d: int) -> bytes:
+        plain = []
+
+        for c in cipher:  # TODO add anti timing attack measures
+            c = b64decode(c)
+            m = pow(c, d, self._n)
+            plain.append(m)
+        del d
+
+        plain = OAEP_unpad(plain, RSA_N_LEN)
+        return plain
+
+
+def key_parser(keyfile: str) -> List[Key]:
+    with open(keyfile, "r") as k:
+        raw_keys = k.readlines()[1:]  # remove header
 
     algos = [RSAKey, ECCKey, EGKey]
     parsed_keys = []
@@ -180,9 +226,10 @@ def key_parser(keyfile: str) -> List[Key]:
             try:
                 key = algo.deserialize_key(raw_key)
                 parsed_keys.append(key)
-                break
+                algos.remove(algo)
             except pickle.UnpicklingError:
-                pass
+                continue
+
     return parsed_keys
 
 

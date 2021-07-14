@@ -14,15 +14,6 @@ FILE_CONTENTS = b"test\ntest\ntest"
 
 
 class FileEncriptorTest(unittest.TestCase):
-    def test_init_keyfile(self):
-        self.assertTrue(False)
-
-    def test_store_encrypted(self):
-        self.assertTrue(False)
-
-    def test_store_decrypted(self):
-        self.assertTrue(False)
-
     def test_serialize_and_deserialize_rsa_key(self):
         rsa_key = init_rsa_key(PASSWORD)
         s = rsa_key.serialize_key()
@@ -56,11 +47,18 @@ class FileEncriptorTest(unittest.TestCase):
         self.assertEqual(set(ecc_key.__dict__), {"_g", "_p", "_diff", "_n", "_salt", "_name"})
         self.assertEqual(set(eg_key.__dict__), {"_g", "_p", "_diff", "_n", "_salt", "_name"})
 
-    def test_pad(self):
-        self.assertTrue(False)
+    def test_OEAP(self):
+        m1 = b"This is a test"
+        blocksize = 32
+        padded = OAEP_pad(m1, blocksize)
+        self.assertTrue(len(m1) + k0 <= blocksize)
+        self.assertEqual(m1, OAEP_unpad(padded, blocksize))
 
-    def test_unpad(self):
-        self.assertTrue(False)
+        m2 = b"7his is 4 t3st, bu7_w1th s0me \x8a $peci4l chars and mul71ple b10ck$."
+        blocksize = 32
+        padded = OAEP_pad(m2, blocksize)
+        self.assertTrue(len(m2) + k0 > blocksize)
+        self.assertEqual(m2, OAEP_unpad(padded, blocksize))
 
     """
     def test_d_from_password(self):
