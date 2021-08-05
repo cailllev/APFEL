@@ -1,10 +1,7 @@
 __pycache__
 
-*.txt
-*.py
-*.pub
-*.parsa
+*.apfel
 
 !utils.py
-!file_encriptor.py
-!test_file_encriptor.py
+!apfel.py
+!test_apfel.py
