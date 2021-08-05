@@ -1,61 +1,17 @@
-from Crypto.Util import number
 from hashlib import pbkdf2_hmac
 from string import punctuation
-from secrets import randbits
-
-from key import RSA_N_LEN, RSA_E, RSAKey, ECCKey, EGKey
+from secrets import token_bytes
 
 HASH_ROUNDS = 2**16
 
 
 def create_encrypted_header(algo: str) -> str:
-    return "======== " + algo.encode() + " ========\n"
+    return "======== " + algo + " ========\n"
 
 
-def get_algo_from_cipher(cipher: bytes) -> str:
+def get_algo_from_cipher(cipher: str) -> str:
     header = cipher.split("\n")[0]
-    return (header.replace("=", "").replace(" ", "")).decode()
-
-
-def init_rsa_key(password):
-    print(f"[#] Init RSA keys.")
-
-    q_len = RSA_N_LEN // 2
-    p_len = RSA_N_LEN - q_len + 1
-    p = q = 0
-
-    # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf#page=62
-    while p - q <= pow(2, int(RSA_N_LEN / 2 - 100)) and (p*q).bit_length() < RSA_N_LEN:
-        p = number.getPrime(p_len)
-        q = number.getPrime(q_len)
-
-    n = p * q
-    phi = (p - 1) * (q - 1)
-    e = RSA_E
-
-    salt = create_salt()
-    d_in = get_num_from_password(password, RSA_N_LEN, salt, HASH_ROUNDS)
-
-    while True:
-        try:
-            d = pow(e, -1, phi)
-            diff = d - d_in
-            break
-        except ValueError:  # i.e. no inverse found
-            pass
-
-    del p, q, phi, d, d_in
-    return RSAKey(n, e, diff, salt)
-
-
-def init_ecc_key(password):
-    print(f"ECC init for {password}.")
-    return ECCKey(0, 0, 0, 0, b"")
-
-
-def init_eg_key(password):
-    print(f"EG init for {password}.")
-    return EGKey(0, 0, 0, 0, b"")
+    return header.replace("=", "").replace(" ", "").replace("\n", "")
 
 
 def check_password_strength(password, shorten_rockyou=False):
@@ -90,22 +46,8 @@ def check_password_strength(password, shorten_rockyou=False):
     return True
 
 
-def shorten_rockyou_txt():
-    valid_passwords = []
-    with open("rockyou.txt", "rb") as f:
-        for password in f:
-            try:
-                if check_password_strength(password[:-1].decode(), True):
-                    valid_passwords.append(password[:-1])
-            except UnicodeDecodeError:
-                pass
-
-    with open("rockyou_shortened.txt", "wb") as f:
-        f.write(b"\n".join(valid_passwords))
-
-
 def create_salt() -> bytes:
-    return randbits(16*8)
+    return token_bytes(16)
 
 
 def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int = HASH_ROUNDS) -> int:
@@ -122,12 +64,7 @@ def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int = 
     # else append hashes until big enough -> password123 -> d4fe -> d4fe36ad -> ...
     while d_in_next.bit_length() <= n_len:
         hashed += pbkdf2_hmac("sha512", hashed, salt, rounds)
-        d_in = d_in_next >> 1
         d_in_next = int.from_bytes(hashed, "big")
+        d_in = d_in_next >> 1  # shift so it's always smaller than n
 
     return d_in
-
-
-if __name__ == "__main__":
-    input("[*] Proceed to shorten 'rockyou.txt'?")
-    shorten_rockyou_txt()
