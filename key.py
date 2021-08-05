@@ -2,10 +2,11 @@ import pickle
 
 from abc import ABC, abstractmethod
 from base64 import b64encode, b64decode
-from Crypto.Util.number import long_to_bytes, bytes_to_long
+from Crypto.Util.number import long_to_bytes, bytes_to_long, getPrime
 from hashlib import pbkdf2_hmac
 from secrets import token_bytes
 from typing import List
+from utils import create_salt, HASH_ROUNDS, get_num_from_password
 
 # keys spec
 RSA_N_LEN = 3072
@@ -28,7 +29,7 @@ def xor(a: bytes, b: bytes) -> bytes:
 
 
 def OAEP_hash(b: bytes, length: int) -> bytes:
-    hashed = pbkdf2_hmac("sha512", b, b"$al7y_s4lt", 1)
+    hashed = pbkdf2_hmac("sha512", b, b"$4lt?_m0r3_l1ke_p3pp3R!", 1)
     return hashed[:length]
 
 
@@ -67,7 +68,7 @@ def OAEP_pad(m: bytes, n: int) -> bytes:
     return padded
 
 
-def OAEP_unpad(ms: bytes, n: int) -> bytes:
+def OAEP_unpad(ms: List[bytes], n: int) -> bytes:
     unpadded = []
 
     for m in ms:
@@ -142,8 +143,11 @@ class Key(ABC):
 # TODO encryption & decryption for algos
 # TODO correct params
 class ECCKey(Key):
-    def __init__(self, n: int, p: int, g: int, diff: int, salt: bytes):
+    def __init__(self, password: str):
         super().__init__()
+        print(f"EG init for {password}.")
+
+        n, p, g, diff, salt = 0, 0, 0, 0, b""
 
         self._name = ECC
         self._n = n
@@ -152,16 +156,18 @@ class ECCKey(Key):
         self._diff = diff
         self._salt = salt
 
-    def encrypt(self, m: bytes) -> bytes:
-        pass
+    def encrypt(self, plain: bytes) -> str:
+        return ""
 
-    def decrypt(self, c: bytes, private: int) -> bytes:
-        pass
+    def decrypt(self, cipher: List[str], d: int) -> bytes:
+        return b""
 
 
 class EGKey(Key):
-    def __init__(self, n: int, p: int, g: int, diff: int, salt: bytes):
+    def __init__(self, password: str):
         super().__init__()
+        print(f"EG init for {password}.")
+        n, p, g, diff, salt = 0, 0, 0, 0, b""
 
         self._name = EG
         self._n = n
@@ -173,16 +179,43 @@ class EGKey(Key):
         # private
         self._k = None
 
-    def encrypt(self, m: bytes) -> bytes:
-        pass
+    def encrypt(self, plain: bytes) -> str:
+        return ""
 
-    def decrypt(self, c: bytes, private: int) -> bytes:
-        pass
+    def decrypt(self, cipher: List[str], d: int) -> bytes:
+        return b""
 
 
 class RSAKey(Key):
-    def __init__(self, n: int, e: int, diff: int, salt: bytes):
+    def __init__(self, password: str) -> Key:
         super().__init__()
+        print(f"[#] Init RSA keys.")
+
+        q_len = RSA_N_LEN // 2
+        p_len = RSA_N_LEN - q_len + 1
+        p = q = 0
+
+        # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf#page=62
+        while p - q <= pow(2, int(RSA_N_LEN / 2 - 100)) and (p * q).bit_length() < RSA_N_LEN:
+            p = getPrime(p_len)
+            q = getPrime(q_len)
+
+        n = p * q
+        phi = (p - 1) * (q - 1)
+        e = RSA_E
+
+        salt = create_salt()
+        d_in = get_num_from_password(password, RSA_N_LEN, salt, HASH_ROUNDS)
+
+        while True:
+            try:
+                d = pow(e, -1, phi)
+                diff = d - d_in
+                break
+            except ValueError:  # i.e. no inverse found
+                pass
+
+        del p, q, phi, d, d_in
 
         self._name = RSA
         self._n = n
@@ -190,14 +223,14 @@ class RSAKey(Key):
         self._diff = diff
         self._salt = salt
 
-    def encrypt(self, plain: bytes) -> str:
+    def encrypt(self, plain: bytes) -> List[str]:
         cipher = []
         ms = OAEP_pad(plain, RSA_N_LEN // 8)  # blocksize in bytes
 
-        for m in ms:  # TODO add anti timing attack measures
-            c = pow(bytes_to_long(m), self._e, self._n)
-            c = b64encode(c).decode()
-            cipher.append(c)
+        for m in ms:
+            m = bytes_to_long(m)
+            c = pow(m, self._e, self._n)
+            cipher.append(str(c))
 
         return "\n".join(cipher)
 
@@ -205,36 +238,45 @@ class RSAKey(Key):
         plain = []
 
         for c in cipher:  # TODO add anti timing attack measures
-            c = b64decode(c)
+            c = int(c)
             m = pow(c, d, self._n)
-            plain.append(m)
+            plain.append(long_to_bytes(m))
         del d
 
         plain = OAEP_unpad(plain, RSA_N_LEN)
         return plain
 
+    def get_e(self):
+        return self._e
 
-def key_parser(keyfile: str) -> List[Key]:
-    with open(keyfile, "r") as k:
-        raw_keys = k.readlines()[1:]  # remove header
 
-    algos = [RSAKey, ECCKey, EGKey]
-    parsed_keys = []
+class KeyHandler:
+    @staticmethod
+    def create_keys(password: str):
+        keys = [ECCKey(password).serialize_key(), EGKey(password).serialize_key(), RSAKey(password).serialize_key()]
+        return "\n".join(keys)
 
-    for raw_key in raw_keys:
-        for algo in algos:
+    @staticmethod
+    def parse_keyfile(keyfile: str) -> List[Key]:
+        with open(keyfile, "r") as k:
+            raw_keys = k.readlines()[1:]  # remove header
+
+        algos = [ECCKey, EGKey, RSAKey]
+        parsed_keys = []
+
+        # try all combinations of raw_key and algo, append all "parsable" keys
+        for raw_key, algo in zip(raw_keys, algos):
             try:
                 key = algo.deserialize_key(raw_key)
                 parsed_keys.append(key)
-                algos.remove(algo)
             except pickle.UnpicklingError:
-                continue
+                raise Exception(f"[!] Keyfile {keyfile} got currupted!")
 
-    return parsed_keys
+        return parsed_keys
 
-
-def get_key_by_name(keys: Key, name: str) -> Key:
-    for key in keys:
-        if key.get_name() == name:
-            return key
-    return None
+    @staticmethod
+    def get_key_by_name(keys: Key, name: str) -> Key:
+        for key in keys:
+            if key.get_name() == name:
+                return key
+        return None
