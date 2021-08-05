@@ -10,7 +10,7 @@ from key import *
 ENCRIPTED_EXTENSION = ".apfel"
 KEYFILE_EXTENSION = ".keys"
 
-HEADER_KEYFILE = b"======== PUBLIC KEYFILE - APFEL ========\n"
+HEADER_KEYFILE = "======== PUBLIC KEYFILE - APFEL ========\n"
 
 
 def init_keyfile(name, password=None) -> None:
@@ -31,9 +31,7 @@ def init_keyfile(name, password=None) -> None:
             else:
                 print("[!] Passwords did not match, please try again.")
 
-    raw_keys = "\n".join([init_ecc_key(password).serialize_key(),
-                          init_eg_key(password).serialize_key(),
-                          init_rsa_key(password).serialize_key()])
+    raw_keys = KeyHandler.create_keys(password)
 
     with open(name, "w") as keyfile:
         keyfile.write(HEADER_KEYFILE)
@@ -51,15 +49,18 @@ def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool =
     with open(filename, "rb") as f:
         plain = f.readlines()
 
-    keys = key_parser(keyfile)
+    keys = KeyHandler.parse_keyfile(keyfile)
     if algorithm != All:
         keys = filter(lambda k: k.get_name() == algorithm, keys)
 
     if len(keys) == 0:
         raise Exception(f"[!] Algorithm {algorithm} not found!")
 
+    # encrypt with each key and put the name of the encryption algo in the file
     for key in keys:
-        plain = create_encrypted_header(key.get_name()) + key.encrypt(plain)
+        header = create_encrypted_header(key.get_name())
+        encrypted = key.encrypt(plain)
+        plain = header + encrypted
     cipher = plain
 
     with open(outfile, "w") as f:
@@ -79,13 +80,13 @@ def decrypt(filename: str, keyfile: str, password: str = None,
     if not password:
         password = getpass("[*] Please enter your password: ")
 
-    with open(filename, "rb") as f:
+    with open(filename, "r") as f:
         cipher = f.readlines()
 
-    keys = key_parser(keyfile)
+    keys = KeyHandler.parse_keyfile(keyfile)
     while True:
         algorithm = get_algo_from_cipher(cipher)
-        key = get_key_by_name(keys, algorithm)
+        key = KeyHandler.get_key_by_name(keys, algorithm)
         if key is None:
             break
 
@@ -161,7 +162,7 @@ def parse_args(argv) -> object:
                             type=str)
 
     arg_parser.add_argument("-a", "--algorithm",
-                            help="Algorithm name: 'RSA', 'ECC', 'EG' (El-Gamal) or 'All'.",
+                            help=f"Algorithm name: {[ECC, EG, RSA, All]}",
                             type=str, default=All)
 
     arg_parser.add_argument("-r", "--remove",
