@@ -28,6 +28,7 @@ decrypt: python3 apfel.py -k <keyfile> -d <file to decrypt> [-v] [-s <new file n
 - implement OEAS padding
 - update threat modelling
 - create pypi package
+- read https://www.researchgate.net/profile/Anton-Stiglic-2/publication/2372902_Security_Issues_in_the_Diffie-Hellman_Key_Agreement_Protocol/links/54b55eea0cf28ebe92e53305/Security-Issues-in-the-Diffie-Hellman-Key-Agreement-Protocol.pdf?origin=publication_detail
 
 ## Implementation Comments
 - own RSA used instead of Pycryptodome's bc. they need a private key or a PEM cert
