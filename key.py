@@ -5,7 +5,8 @@ from base64 import b64encode, b64decode
 from Crypto.Util.number import long_to_bytes, bytes_to_long, getPrime
 from hashlib import pbkdf2_hmac
 from secrets import token_bytes
-from typing import List
+from typing import List, TypeVar
+
 from utils import create_salt, HASH_ROUNDS, get_num_from_password
 
 # keys spec
@@ -33,7 +34,7 @@ def OAEP_hash(b: bytes, length: int) -> bytes:
     return hashed[:length]
 
 
-def OAEP_pad(m: bytes, n: int) -> bytes:
+def OAEP_pad(m: bytes, n: int) -> List[bytes]:
     if n <= k0:
         raise Exception(f"[!] Blocksize ({n} bytes) must be bigger than k0 ({k0} bytes).")
 
@@ -92,6 +93,8 @@ def OAEP_unpad(ms: List[bytes], n: int) -> bytes:
 
 
 class Key(ABC):
+    K = TypeVar('K')
+
     def __init__(self):
         self._name = None
         self._diff = None
@@ -128,7 +131,7 @@ class Key(ABC):
         return self._salt
 
     @staticmethod
-    def deserialize_key(raw_key: str) -> object:
+    def deserialize_key(raw_key: str) -> K:
         return pickle.loads(b64decode(raw_key))
 
     @abstractmethod
@@ -156,8 +159,8 @@ class ECCKey(Key):
         self._diff = diff
         self._salt = salt
 
-    def encrypt(self, plain: bytes) -> str:
-        return ""
+    def encrypt(self, plain: bytes) -> bytes:
+        return b""
 
     def decrypt(self, cipher: List[str], d: int) -> bytes:
         return b""
@@ -179,15 +182,15 @@ class EGKey(Key):
         # private
         self._k = None
 
-    def encrypt(self, plain: bytes) -> str:
-        return ""
+    def encrypt(self, plain: bytes) -> bytes:
+        return b""
 
     def decrypt(self, cipher: List[str], d: int) -> bytes:
         return b""
 
 
 class RSAKey(Key):
-    def __init__(self, password: str) -> Key:
+    def __init__(self, password: str):
         super().__init__()
         print(f"[#] Init RSA keys.")
 
@@ -232,7 +235,7 @@ class RSAKey(Key):
             c = pow(m, self._e, self._n)
             cipher.append(str(c))
 
-        return "\n".join(cipher)
+        return cipher
 
     def decrypt(self, cipher: List[str], d: int) -> bytes:
         plain = []
@@ -275,8 +278,8 @@ class KeyHandler:
         return parsed_keys
 
     @staticmethod
-    def get_key_by_name(keys: Key, name: str) -> Key:
+    def get_key(keys: List[Key], name: bytes) -> (bool, Key):
         for key in keys:
-            if key.get_name() == name:
+            if key.get_name().encode() == name:
                 return key
         return None

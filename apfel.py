@@ -7,7 +7,7 @@ from getpass import getpass
 from utils import *
 from key import *
 
-ENCRIPTED_EXTENSION = ".apfel"
+ENCRYPTED_EXTENSION = ".apfel"
 KEYFILE_EXTENSION = ".keys"
 
 HEADER_KEYFILE = "======== PUBLIC KEYFILE - APFEL ========\n"
@@ -42,12 +42,12 @@ def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool =
     if not os.path.isfile(filename):
         raise FileNotFoundError(f"[!] File to encrypt {filename} does not exist!")
 
-    outfile = filename + ENCRIPTED_EXTENSION
+    outfile = filename + ENCRYPTED_EXTENSION
     if os.path.isfile(outfile):
         raise FileExistsError(f"[!] Encripted outfile {outfile} already exists!")
 
     with open(filename, "rb") as f:
-        plain = f.readlines()
+        plain = f.read()
 
     keys = KeyHandler.parse_keyfile(keyfile)
     if algorithm != All:
@@ -58,12 +58,12 @@ def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool =
 
     # encrypt with each key and put the name of the encryption algo in the file
     for key in keys:
-        header = create_encrypted_header(key.get_name())
+        header = create_encrypted_header(key.get_name().encode())
         encrypted = key.encrypt(plain)
         plain = header + encrypted
     cipher = plain
 
-    with open(outfile, "w") as f:
+    with open(outfile, "wb") as f:
         f.write(cipher)
     print(f"[*] Successfully encripted contents of {filename} and saved them under {outfile}.")
 
@@ -80,14 +80,14 @@ def decrypt(filename: str, keyfile: str, password: str = None,
     if not password:
         password = getpass("[*] Please enter your password: ")
 
-    with open(filename, "r") as f:
-        cipher = f.readlines()
+    with open(filename, "rb") as f:
+        cipher = f.read()
 
     keys = KeyHandler.parse_keyfile(keyfile)
     while True:
-        algorithm = get_algo_from_cipher(cipher)
-        key = KeyHandler.get_key_by_name(keys, algorithm)
-        if key is None:
+        header = get_header(cipher)
+        key = KeyHandler.get_key(keys, header)
+        if not key:
             break
 
         pw_num = get_num_from_password(password, RSA_N_LEN, key.get_salt())

@@ -5,13 +5,13 @@ from secrets import token_bytes
 HASH_ROUNDS = 2**16
 
 
-def create_encrypted_header(algo: str) -> str:
-    return "======== " + algo + " ========\n"
+def create_encrypted_header(algo: bytes) -> bytes:
+    return b"======== " + algo + b" ========\n"
 
 
-def get_algo_from_cipher(cipher: str) -> str:
-    header = cipher.split("\n")[0]
-    return header.replace("=", "").replace(" ", "").replace("\n", "")
+def get_header(cipher: bytes) -> bytes:
+    header = cipher.split(b"\n")[0]
+    return header.replace(b"=", b"").replace(b" ", b"").replace(b"\n", b"")
 
 
 def check_password_strength(password, shorten_rockyou=False):
