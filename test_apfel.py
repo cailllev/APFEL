@@ -106,9 +106,9 @@ class FileEncryptorTest(unittest.TestCase):
         for i in range(10):
             plain = b"".join([chr(randint(1, 127)).encode() for _ in range(i*blocksize + 1)])
             cipher = rsa_key.encrypt(plain)
-            lines = len(cipher)
+            lines = len(cipher.split(Key.seperator))
 
-            self.assertEqual(lines, i + 1)
+            self.assertEqual(i + 1, lines)
             self.assertEqual(plain, rsa_key.decrypt(cipher, d))
 
     # ***** PASSWORD STRENGTH ***** #

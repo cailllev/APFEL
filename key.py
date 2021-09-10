@@ -19,9 +19,10 @@ padding = b"\x00"
 padding_int = int.from_bytes(padding, "big")
 
 # names
-RSA = "RSA"
+ALL = "ALL"
 ECC = "ECC"
 EG = "EG"
+RSA = "RSA"
 
 
 def xor(a: bytes, b: bytes) -> bytes:
@@ -93,6 +94,7 @@ def OAEP_unpad(ms: List[bytes], n: int) -> bytes:
 
 class Key(ABC):
     K = TypeVar('K')
+    seperator = b":"
 
     def __init__(self):
         self._name = None
@@ -134,11 +136,11 @@ class Key(ABC):
         return pickle.loads(b64decode(raw_key))
 
     @abstractmethod
-    def encrypt(self, m: bytes) -> List[str]:
+    def encrypt(self, m: bytes) -> bytes:
         ...
 
     @abstractmethod
-    def decrypt(self, c: List[str], private: int) -> bytes:
+    def decrypt(self, c: bytes, private: int) -> bytes:
         ...
 
 
@@ -158,10 +160,10 @@ class ECCKey(Key):
         self._diff = diff
         self._salt = salt
 
-    def encrypt(self, plain: bytes) -> List[str]:
-        return []
+    def encrypt(self, plain: bytes) -> bytes:
+        return b""
 
-    def decrypt(self, cipher: List[str], d: int) -> bytes:
+    def decrypt(self, cipher: bytes, d: int) -> bytes:
         return b""
 
 
@@ -181,10 +183,10 @@ class EGKey(Key):
         # private
         self._k = None
 
-    def encrypt(self, plain: bytes) -> List[str]:
-        return []
+    def encrypt(self, plain: bytes) -> bytes:
+        return b""
 
-    def decrypt(self, cipher: List[str], d: int) -> bytes:
+    def decrypt(self, cipher: bytes, d: int) -> bytes:
         return b""
 
 
@@ -225,22 +227,24 @@ class RSAKey(Key):
         self._diff = diff
         self._salt = salt
 
-    def encrypt(self, plain: bytes) -> List[str]:
+    def encrypt(self, plain: bytes) -> bytes:
         cipher = []
         ms = OAEP_pad(plain, RSA_N_LEN // 8)  # blocksize in bytes
 
         for m in ms:
             m = bytes_to_long(m)
             c = pow(m, self._e, self._n)
-            cipher.append(str(c))
+            c = long_to_bytes(c)
+            cipher.append(b64encode(c))
 
-        return cipher
+        return self.seperator.join(cipher)
 
-    def decrypt(self, cipher: List[str], d: int) -> bytes:
+    def decrypt(self, cipher: bytes, d: int) -> bytes:
         plain = []
 
-        for c in cipher:  # TODO add anti timing attack measures
-            c = int(c)
+        for c in cipher.split(self.seperator):  # TODO add anti timing attack measures
+            c = b64decode(c)
+            c = bytes_to_long(c)
             m = pow(c, d, self._n)
             plain.append(long_to_bytes(m))
         del d
