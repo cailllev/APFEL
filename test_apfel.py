@@ -1,6 +1,6 @@
 import os
 import unittest
-from random import randbytes
+from random import randint
 
 from apfel import *
 from utils import *
@@ -100,10 +100,11 @@ class FileEncryptorTest(unittest.TestCase):
     def test_encryption_multiple_blocks(self):
         rsa_key = RSAKey(PASSWORD)
         d = get_num_from_password(PASSWORD, RSA_N_LEN, rsa_key.get_salt()) + rsa_key.get_diff()
-        block_len = RSA_N_LEN // 8  # in bytes
+        blocksize = RSA_N_LEN // 8
 
+        # TODO: find the bug for when plain can be all bytes
         for i in range(10):
-            plain = randbytes(i*block_len + 1)
+            plain = b"".join([chr(randint(1, 127)).encode() for _ in range(i*blocksize + 1)])
             cipher = rsa_key.encrypt(plain)
             lines = len(cipher)
 
