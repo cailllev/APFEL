@@ -50,17 +50,16 @@ def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool =
         plain = f.read()
 
     keys = KeyHandler.parse_keyfile(keyfile)
-    if algorithm != All:
-        keys = filter(lambda k: k.get_name() == algorithm, keys)
-
+    keys = filter(lambda k: k.get_name() == algorithm, keys)
     if len(keys) == 0:
         raise Exception(f"[!] Algorithm {algorithm} not found!")
 
     # encrypt with each key and put the name of the encryption algo in the file
     for key in keys:
-        header = create_encrypted_header(key.get_name().encode())
+        header = create_header(key.get_name())
         encrypted = key.encrypt(plain)
-        plain = header + encrypted
+        encrypted = b"".join([e.encode() for e in encrypted])
+        plain = header.encode() + encrypted
     cipher = plain
 
     with open(outfile, "wb") as f:
@@ -131,7 +130,7 @@ init:    python3 apfel.py -i <keyfile>
 encrypt: python3 apfel.py -k <keyfile> -e <file to encrypt> [-a RSA | ECC | EG] [-r]
             k: the keyfile with the keys
             e: the file to encrypt
-            a: algorithm to encrypt, defaults to all
+            a: algorithm to encrypt
             r: remove original after encryption
             
 decrypt: python3 apfel.py -k <keyfile> -d <file to decrypt> [-v] [-s <new file name>]
@@ -162,8 +161,8 @@ def parse_args(argv) -> object:
                             type=str)
 
     arg_parser.add_argument("-a", "--algorithm",
-                            help=f"Algorithm name: {[ECC, EG, RSA, All]}",
-                            type=str, default=All)
+                            help=f"Algorithm name: {[ECC, EG, RSA]}",
+                            type=str, default=ECC)
 
     arg_parser.add_argument("-r", "--remove",
                             help="Remove original after encryption.",

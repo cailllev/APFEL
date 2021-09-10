@@ -22,7 +22,6 @@ padding_int = int.from_bytes(padding, "big")
 RSA = "RSA"
 ECC = "ECC"
 EG = "EG"
-All = "All"
 
 
 def xor(a: bytes, b: bytes) -> bytes:
@@ -135,11 +134,11 @@ class Key(ABC):
         return pickle.loads(b64decode(raw_key))
 
     @abstractmethod
-    def encrypt(self, m: bytes) -> bytes:
+    def encrypt(self, m: bytes) -> List[str]:
         ...
 
     @abstractmethod
-    def decrypt(self, c: bytes, private: int) -> bytes:
+    def decrypt(self, c: List[str], private: int) -> bytes:
         ...
 
 
@@ -159,8 +158,8 @@ class ECCKey(Key):
         self._diff = diff
         self._salt = salt
 
-    def encrypt(self, plain: bytes) -> bytes:
-        return b""
+    def encrypt(self, plain: bytes) -> List[str]:
+        return []
 
     def decrypt(self, cipher: List[str], d: int) -> bytes:
         return b""
@@ -182,8 +181,8 @@ class EGKey(Key):
         # private
         self._k = None
 
-    def encrypt(self, plain: bytes) -> bytes:
-        return b""
+    def encrypt(self, plain: bytes) -> List[str]:
+        return []
 
     def decrypt(self, cipher: List[str], d: int) -> bytes:
         return b""

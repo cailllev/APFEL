@@ -5,8 +5,8 @@ from secrets import token_bytes
 HASH_ROUNDS = 2**16
 
 
-def create_encrypted_header(algo: bytes) -> bytes:
-    return b"======== " + algo + b" ========\n"
+def create_header(algo: str) -> str:
+    return "======== " + algo + " ========\n"
 
 
 def get_header(cipher: bytes) -> bytes:
@@ -56,15 +56,13 @@ def get_num_from_password(password: str, n_len: int, salt: bytes, rounds: int = 
     d_in_next = int.from_bytes(hashed, "big")
     d_in = 0
 
-    # if d_in is bigger than n -> rightshift so it fits
-    # only happens in testing, when n < 512 bit is allowed
-    if d_in_next.bit_length() >= n_len:
-        return d_in_next >> d_in_next.bit_length() - n_len + 1
-
-    # else append hashes until big enough -> password123 -> d4fe -> d4fe36ad -> ...
+    # append hashes until hash is >= n_len -> password123 -> d4fe -> d4fe36ad -> d4fe36ad04ef -> ...
     while d_in_next.bit_length() <= n_len:
         hashed += pbkdf2_hmac("sha512", hashed, salt, rounds)
         d_in_next = int.from_bytes(hashed, "big")
-        d_in = d_in_next >> 1  # shift so it's always smaller than n
+
+    # now if d_in_next is bigger than n -> rightshift so it fits
+    if d_in_next.bit_length() >= n_len - 1:
+        return d_in_next >> (d_in_next.bit_length() - n_len + 1)
 
     return d_in
