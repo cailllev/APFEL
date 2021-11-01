@@ -38,7 +38,7 @@ def init_keyfile(name, password=None) -> None:
         keyfile.write(raw_keys)
 
 
-def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool = False) -> None:
+def encrypt(filename: str, keyfile: str, algorithm: str = "ALL", delete_original: bool = False) -> None:
     if not os.path.isfile(filename):
         raise FileNotFoundError(f"[!] File to encrypt {filename} does not exist!")
 
@@ -60,7 +60,7 @@ def encrypt(filename: str, keyfile: str, algorithm: str, delete_original: bool =
     for key in keys:
         header = create_header(key.get_name())
         encrypted = key.encrypt(plain)
-        plain = header.encode() + encrypted
+        plain = header + encrypted
     cipher = plain
 
     with open(outfile, "wb") as f:
@@ -81,18 +81,20 @@ def decrypt(filename: str, keyfile: str, password: str = None,
         password = getpass("[*] Please enter your password: ")
 
     with open(filename, "rb") as f:
-        cipher = f.read()
+        data = f.read()
 
     keys = KeyHandler.parse_keyfile(keyfile)
+    cipher = b""
     while True:
-        header = get_header(cipher)
-        key = KeyHandler.get_key(keys, header)
+        algo = get_algo(data)
+        key = KeyHandler.get_key(keys, algo)
         if not key:
             break
 
-        pw_num = get_num_from_password(password, RSA_N_LEN, key.get_salt())
+        cipher = remove_header(data)
+        pw_num = get_num_from_password(password, key.get_n_len(), key.get_salt())
         private = pw_num + key.get_diff()
-        cipher = key.decrypt(cipher, private)
+        data = key.decrypt(cipher, private)
 
     plain = cipher
 

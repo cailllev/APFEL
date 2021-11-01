@@ -5,13 +5,9 @@ from base64 import b64encode, b64decode
 from Crypto.Util.number import long_to_bytes, bytes_to_long, getPrime
 from hashlib import pbkdf2_hmac
 from secrets import token_bytes
-from typing import List, TypeVar
+from typing import List, TypeVar, Union
 
 from utils import create_salt, HASH_ROUNDS, get_num_from_password
-
-# keys spec
-RSA_N_LEN = 3072
-RSA_E = 0x10001
 
 # OAEP
 k0 = 16  # byte length for OEAP
@@ -29,12 +25,12 @@ def xor(a: bytes, b: bytes) -> bytes:
     return long_to_bytes(bytes_to_long(a) ^ bytes_to_long(b))
 
 
-def OAEP_hash(b: bytes, length: int) -> bytes:
+def oaep_hash(b: bytes, length: int) -> bytes:
     hashed = pbkdf2_hmac("sha512", b, b"$4lt?_m0r3_l1ke_p3pp3R!", 1)
     return hashed[:length]
 
 
-def OAEP_pad(m: bytes, n: int) -> List[bytes]:
+def oaep_pad(m: bytes, n: int) -> List[bytes]:
     if n <= k0:
         raise Exception(f"[!] Blocksize ({n} bytes) must be bigger than k0 ({k0} bytes).")
 
@@ -52,13 +48,13 @@ def OAEP_pad(m: bytes, n: int) -> List[bytes]:
         r = token_bytes(k0)
 
         # G expands the k0 bits of r to n − k0 bits
-        g = OAEP_hash(r, n - k0)
+        g = oaep_hash(r, n - k0)
 
         # X = m00...0 ⊕ G(r)
         x = xor(m, g)
 
         # H reduces the n − k0 bits of X to k0 bits
-        h = OAEP_hash(x, k0)
+        h = oaep_hash(x, k0)
 
         # Y = r ⊕ H(X)
         y = xor(r, h)
@@ -69,7 +65,7 @@ def OAEP_pad(m: bytes, n: int) -> List[bytes]:
     return padded
 
 
-def OAEP_unpad(ms: List[bytes], n: int) -> bytes:
+def oaep_unpad(ms: List[bytes], n: int) -> bytes:
     unpadded = []
 
     for m in ms:
@@ -77,11 +73,11 @@ def OAEP_unpad(ms: List[bytes], n: int) -> bytes:
         y = m[-k0:]
 
         # recover the random string as r = Y ⊕ H(X)
-        h = OAEP_hash(x, k0)
+        h = oaep_hash(x, k0)
         r = xor(y, h)
 
         # recover the message as m00...0 = X ⊕ G(r)
-        g = OAEP_hash(r, n - k0)
+        g = oaep_hash(r, n - k0)
         m = xor(x, g)
 
         while m[-1] == padding_int:
@@ -94,18 +90,19 @@ def OAEP_unpad(ms: List[bytes], n: int) -> bytes:
 
 class Key(ABC):
     K = TypeVar('K')
-    seperator = b":"
+    seperator = b"\n"  # must not be in base64 alphabet!
 
     def __init__(self):
-        self._name = None
-        self._diff = None
-        self._salt = None
+        self._name = ""
+        self._n_len = 0
+        self._diff = 0
+        self._salt = b""
 
     def serialize_key(self) -> str:
         return b64encode(pickle.dumps(self)).decode()
 
     def __str__(self) -> str:
-        return str(self.__dict__.keys())
+        return str(self._name)
 
     def __eq__(self, other) -> bool:
         if type(other) is not type(self):
@@ -125,6 +122,9 @@ class Key(ABC):
     def get_name(self) -> str:
         return self._name
 
+    def get_n_len(self) -> int:
+        return self._n_len
+
     def get_diff(self) -> int:
         return self._diff
 
@@ -137,10 +137,21 @@ class Key(ABC):
 
     @abstractmethod
     def encrypt(self, m: bytes) -> bytes:
+        """
+        recieves plain text, returns chucked, b64encoded cipher
+        :param m: plain text
+        :return: cipher
+        """
         ...
 
     @abstractmethod
     def decrypt(self, c: bytes, private: int) -> bytes:
+        """
+        recieves chunked cipher and secret, returns plain text
+        :param c: chunked bytes
+        :param private: secret to reconstruct private key
+        :return: plain text
+        """
         ...
 
 
@@ -150,6 +161,8 @@ class ECCKey(Key):
     def __init__(self, password: str):
         super().__init__()
         print(f"EG init for {password}.")
+
+        self._n_len = 256
 
         n, p, g, diff, salt = 0, 0, 0, 0, b""
 
@@ -161,18 +174,20 @@ class ECCKey(Key):
         self._salt = salt
 
     def encrypt(self, plain: bytes) -> bytes:
-        return b""
+        return plain
 
     def decrypt(self, cipher: bytes, d: int) -> bytes:
-        return b""
+        return cipher
 
 
 class EGKey(Key):
     def __init__(self, password: str):
         super().__init__()
         print(f"EG init for {password}.")
-        n, p, g, diff, salt = 0, 0, 0, 0, b""
 
+        self._n_len = 256
+
+        n, p, g, diff, salt = 0, 0, 0, 0, b""
         self._name = EG
         self._n = n
         self._p = p
@@ -181,13 +196,13 @@ class EGKey(Key):
         self._salt = salt
 
         # private
-        self._k = None
+        self._k = 0
 
     def encrypt(self, plain: bytes) -> bytes:
-        return b""
+        return plain
 
     def decrypt(self, cipher: bytes, d: int) -> bytes:
-        return b""
+        return cipher
 
 
 class RSAKey(Key):
@@ -195,25 +210,27 @@ class RSAKey(Key):
         super().__init__()
         print(f"[#] Init RSA keys.")
 
-        q_len = RSA_N_LEN // 2
-        p_len = RSA_N_LEN - q_len + 1
+        self._n_len = 4096
+        self._e = 0x10001
+
+        q_len = self._n_len // 2
+        p_len = self._n_len - q_len + 1
         p = q = 0
 
         # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf#page=62
-        while p - q <= pow(2, int(RSA_N_LEN / 2 - 100)) and (p * q).bit_length() < RSA_N_LEN:
+        while p - q <= pow(2, int(self._n_len / 2 - 100)) and (p * q).bit_length() < self._n_len:
             p = getPrime(p_len)
             q = getPrime(q_len)
 
         n = p * q
         phi = (p - 1) * (q - 1)
-        e = RSA_E
 
         salt = create_salt()
-        d_in = get_num_from_password(password, RSA_N_LEN, salt, HASH_ROUNDS)
+        d_in = get_num_from_password(password, self._n_len, salt, HASH_ROUNDS)
 
         while True:
             try:
-                d = pow(e, -1, phi)
+                d = pow(self._e, -1, phi)
                 diff = d - d_in
                 break
             except ValueError:  # i.e. no inverse found
@@ -223,13 +240,12 @@ class RSAKey(Key):
 
         self._name = RSA
         self._n = n
-        self._e = e
         self._diff = diff
         self._salt = salt
 
     def encrypt(self, plain: bytes) -> bytes:
         cipher = []
-        ms = OAEP_pad(plain, RSA_N_LEN // 8)  # blocksize in bytes
+        ms = oaep_pad(plain, self._n_len // 8)  # blocksize in bytes
 
         for m in ms:
             m = bytes_to_long(m)
@@ -249,7 +265,7 @@ class RSAKey(Key):
             plain.append(long_to_bytes(m))
         del d
 
-        plain = OAEP_unpad(plain, RSA_N_LEN)
+        plain = oaep_unpad(plain, self._n_len)
         return plain
 
     def get_e(self):
@@ -281,8 +297,8 @@ class KeyHandler:
         return parsed_keys
 
     @staticmethod
-    def get_key(keys: List[Key], name: bytes) -> (bool, Key):
+    def get_key(keys: List[Key], name: str) -> Union[None, Key]:
         for key in keys:
-            if key.get_name().encode() == name:
+            if key.get_name() == name:
                 return key
         return None

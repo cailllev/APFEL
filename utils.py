@@ -3,15 +3,24 @@ from string import punctuation
 from secrets import token_bytes
 
 HASH_ROUNDS = 2**16
+HEADER_TEXT = b"APFEL ENCRYPTED FILE: "
+HEADER_SEPARATOR = b"\n"
+
+assert HEADER_SEPARATOR not in HEADER_TEXT, "HEADER_TEXT cannot contain HEADER_SEPARATOR"
 
 
-def create_header(algo: str) -> str:
-    return "======== " + algo + " ========\n"
+def create_header(algo: str) -> bytes:
+    return HEADER_TEXT + algo.encode() + HEADER_SEPARATOR
 
 
-def get_header(cipher: bytes) -> bytes:
-    header = cipher.split(b"\n")[0]
-    return header.replace(b"=", b"").replace(b" ", b"").replace(b"\n", b"")
+def get_algo(cipher: bytes) -> str:
+    header = cipher.split(HEADER_SEPARATOR)[0]
+    return header.replace(HEADER_TEXT, b"").decode()
+
+
+def remove_header(cipher: bytes) -> bytes:
+    header_end = cipher.index(HEADER_SEPARATOR) + 1
+    return cipher[header_end:]
 
 
 def check_password_strength(password, shorten_rockyou=False):
@@ -37,7 +46,7 @@ def check_password_strength(password, shorten_rockyou=False):
 
     # only skip this if in "shorten rockyou" mode
     if not shorten_rockyou:
-        with open("rockyou_shortened.txt", "rb") as f:
+        with open("helpers/rockyou_shortened.txt", "rb") as f:
             for pw in f:
                 if password.encode() == pw[:-1]:
                     print("[!] Password must not be in 'rockyou.txt'.")

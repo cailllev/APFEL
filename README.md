@@ -21,7 +21,7 @@ decrypt: python3 apfel.py -k <keyfile> -d <file to decrypt> [-v] [-s <new file n
 ```
 
 ## Threat Modelling
-- no obvious RSA weakness, see [here](Threat_Modelling.md)
+- no obvious RSA weakness, see [here](helpers/Threat_Modelling.md)
 
 ## TODO
 - add ECC and El Gamal encryption algorithm
