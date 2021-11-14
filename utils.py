@@ -23,7 +23,7 @@ def remove_header(cipher: bytes) -> bytes:
     return cipher[header_end:]
 
 
-def check_password_strength(password, shorten_rockyou=False):
+def check_password_strength(password):
     if len(password) < 10:
         print("[!] Password has to be at least 10 characters long.")
         return False
@@ -44,13 +44,11 @@ def check_password_strength(password, shorten_rockyou=False):
         print("[!] Password has to contain at least one special character.")
         return False
 
-    # only skip this if in "shorten rockyou" mode
-    if not shorten_rockyou:
-        with open("helpers/rockyou_shortened.txt", "rb") as f:
-            for pw in f:
-                if password.encode() == pw[:-1]:
-                    print("[!] Password must not be in 'rockyou.txt'.")
-                    return False
+    with open("helpers/rockyou_shortened.txt", "rb") as f:
+        for pw in f:
+            if password.encode() == pw[:-1]:
+                print("[!] Password must not be in 'rockyou.txt'.")
+                return False
 
     return True
 
